@@ -70,8 +70,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 <main id="main">
 <section class="page" id="step2" aria-labelledby="uploadTitle">
  <div class="sectionhead"><div><div class="kicker">01 / UPLOAD</div><h2 class="h2" id="uploadTitle">ONE PHOTO.<br>MANY WORLDS.</h2><p class="lead">Upload a photo and add artwork to each green area.</p></div></div>
- <div class="notice"><strong>LOCAL UPLOAD</strong>Your photos and artwork stay on this device. Upload a JPG or PNG; convert camera RAW files to JPG or PNG first.</div><div class="upload-grid multi-upload">
-  <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>JPG / PNG / WEBP</span></div></div>
+ <div class="notice"><strong>LOCAL UPLOAD</strong>Your photos and artwork stay on this device. Upload a NEF, JPG, PNG, or WebP photo. NEF decoding happens on your device.</div><div class="upload-grid multi-upload">
+  <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp,.nef" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>NEF / JPG / PNG / WEBP</span></div></div>
   <div class="region-scan"><div class="scan-head"><strong>B / Detect canvases</strong><span class="canvas-count" id="detectedCount" aria-live="polite">UPLOAD TO SCAN</span></div><div class="scan-preview"><canvas id="scanCanvas" width="640" height="420" aria-label="Detected green panels highlighted with their canvas numbers"></canvas></div><div class="small" id="scanMessage">Shadow-aware green detection. Deep folds are recovered automatically; separate regions stay independent.</div><div class="editor-buttons"><button class="button" id="rescanUpload" disabled>↻ SCAN AGAIN</button><button class="button" id="uploadDemo">TRY 3-CANVAS DEMO</button></div></div>
  </div>
  <div class="artwork-board"><div class="artwork-board-top"><div><h3>Artwork for each canvas</h3></div><div><label class="button upload-trigger" for="multiArtworkInput">＋ UPLOAD MULTIPLE IMAGES</label><input id="multiArtworkInput" type="file" accept="image/*" multiple aria-label="Choose multiple artwork images"></div></div>
@@ -319,7 +319,26 @@ function loadImageFromFile(file){return new Promise((resolve,reject)=>{if(!file)
  if(!file.type.startsWith('image/')&&!/\.(heic|heif|jpg|jpeg|png|webp|gif|avif)$/i.test(file.name)){reject(Error('Choose a valid image.'));return;}
  if(file.size>35*1024*1024){reject(Error('Images over 35 MB must be resized first.'));return;}
  const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(url);resolve(im);};im.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Cannot open '+file.name+'. Convert HEIC to JPG if necessary.'));};im.src=url;});}
-async function loadImageFile(file,regionId=null){if(!file)return;try{const img=await loadImageFromFile(file);if(regionId===null)useFabric(img,file.name,file,false);else{const r=regions.find(z=>z.id===regionId);if(r)assignArtwork(r,img,file.name,file,false);} $('uploadError').textContent='';}catch(err){$('uploadError').textContent='Could not open this image. Use a JPG, PNG, or WebP file. Camera RAW files must be converted first.';setMessage($('uploadError').textContent);}}
+async function decodeNef(file){
+ const prefix=/\/static(?:\/index\.html|\/)?$/.test(location.pathname)?'../vendor/libraw/index.js':'./vendor/libraw/index.js';
+ const {default:LibRaw}=await import(prefix);const raw=new LibRaw();
+ try{
+  await raw.open(new Uint8Array(await file.arrayBuffer()),{useCameraWb:true,outputBps:8,outputColor:1});
+  const image=await raw.imageData();
+  if(!image||image.bits!==8||image.colors<3||!image.width||!image.height)throw Error('Unsupported image data');
+  const {width:w,height:h,colors,data}=image;if(w*h>100000000)throw Error('Image is too large to process');
+  const canvas=makeCanvas(w,h),context=canvas.getContext('2d'),pixels=context.createImageData(w,h);
+  for(let i=0,j=0;i<w*h;i++,j+=colors){const k=i*4;pixels.data[k]=data[j];pixels.data[k+1]=data[j+1];pixels.data[k+2]=data[j+2];pixels.data[k+3]=255;}
+  context.putImageData(pixels,0,0);return canvas;
+ }finally{raw.dispose();}
+}
+let photoLoadVersion=0;
+async function loadImageFile(file,regionId=null){if(!file)return;const version=regionId===null?++photoLoadVersion:0;try{
+ const isNef=regionId===null&&/\.nef$/i.test(file.name);if(isNef){$('uploadError').textContent='Decoding NEF on this device…';setMessage('Decoding NEF…');}
+ const img=isNef?await decodeNef(file):await loadImageFromFile(file);if(regionId===null&&version!==photoLoadVersion)return;
+ if(regionId===null)useFabric(img,file.name,file,false);else{const r=regions.find(z=>z.id===regionId);if(r)assignArtwork(r,img,file.name,file,false);} $('uploadError').textContent='';
+ }catch(err){if(regionId===null&&version!==photoLoadVersion)return;console.error(err);$('uploadError').textContent=/\.nef$/i.test(file.name)?'Could not decode this NEF. This camera or compression may not be supported, or the file may be damaged. Try converting it to JPG or PNG.':'Could not open this image. Use a NEF, JPG, PNG, or WebP file.';setMessage($('uploadError').textContent);}}
+
 function useFabric(img,name,file,demo=false){fabricImg=img;fabricName=name;fabricFile=file;isDemoFabric=demo;regions=[];selectedId=null;segmentation=null;
  const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height,s=Math.min(1,1100/Math.max(w,h));view.width=Math.max(1,Math.round(w*s));view.height=Math.max(1,Math.round(h*s));$('sizeInfo').textContent=w+' × '+h;
  const thumb=$('fabricThumb');thumb.src=thumbURL(img);thumb.classList.remove('hide');$('fabricThumbCaption').classList.remove('hide');$('fabricEmpty').classList.add('hide');$('fabricLabel').textContent=name;

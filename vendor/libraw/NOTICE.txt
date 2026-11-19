@@ -1,0 +1,2 @@
+libraw-wasm 1.6.0: https://github.com/ybouane/LibRaw-Wasm (ISC, as stated in package metadata).
+Includes LibRaw: https://github.com/LibRaw/LibRaw, distributed under the CDDL 1.0 option; see LICENSE.CDDL and COPYRIGHT. Upstream source for the wrapper and build instructions: https://github.com/ybouane/LibRaw-Wasm/tree/v1.6.0. LibRaw source: https://github.com/LibRaw/LibRaw.
