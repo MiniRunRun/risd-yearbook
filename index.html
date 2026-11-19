@@ -111,6 +111,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 }
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.button[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -183,8 +185,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
    <form id="submissionForm" novalidate>
     <div class="field"><label for="photoNumber">Which photo number is this? <span class="required">*</span></label><input id="photoNumber" inputmode="numeric" pattern="[1-9][0-9]*" placeholder="e.g. 1" required></div>
     <div class="validation" id="submitError" role="alert"></div>
-    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE</button></div>
-    <span id="packageStatus" role="status" class="sr-only"></span>
+    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE</button><button type="button" class="button" id="changeFolder" hidden>CHANGE FOLDER</button></div>
+    <p class="small" id="packageStatus" role="status" aria-live="polite"></p>
    </form>
   </div>
  </div>
@@ -610,7 +612,23 @@ async function openProject(file){
  regions=restored;nextId=Math.max(0,...regions.map(r=>r.id))+1;selectedId=regions.some(r=>r.id===project.selectedId)?project.selectedId:regions[0].id;applyShadowSamples();$('photoNumber').value=project.photoNumber||'';previewBase=null;updateUI();requestRender();$('uploadError').textContent='';showStep(3);setMessage('Project opened. Continue editing.');
  }catch(err){console.error(err);$('uploadError').textContent='Could not open project: '+err.message;}finally{$('projectFile').value='';}}
 $('projectFile').addEventListener('change',e=>openProject(e.target.files[0]));
-$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;$('packageStatus').textContent='Preparing TIFF and editable project…';try{await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const project=await makeProject(number);saveBlob(tiff,base+'.tif');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Download requests sent for the TIFF and editable project.';}catch(err){$('submitError').textContent='Export failed: '+err.message;$('packageStatus').textContent='Export failed.';}finally{btn.disabled=false;}});
+// Folder access is granted explicitly by the user and lasts for this page session.
+let saveDirectory=null;
+async function chooseFolder(){const handle=await window.showDirectoryPicker({mode:'readwrite'});saveDirectory=handle;$('changeFolder').hidden=false;return handle;}
+$('changeFolder').addEventListener('click',async()=>{try{const handle=await chooseFolder();$('packageStatus').textContent='Save folder: '+handle.name;}catch(err){if(err.name!=='AbortError')$('submitError').textContent='Could not choose folder: '+err.message;}});
+async function existsInFolder(folder,name){try{await folder.getFileHandle(name);return true;}catch(err){if(err.name==='NotFoundError')return false;if(err.name==='TypeMismatchError')return true;throw err;}}
+async function unusedNames(folder,base){for(let n=1;n<=1000;n++){const suffix=n===1?'':' ('+n+')',tiff=base+suffix+'.tif',project=base+suffix+'_project.json';if(!await existsInFolder(folder,tiff)&&!await existsInFolder(folder,project))return {tiff,project};}throw Error('Too many files with this name.');}
+async function writeInFolder(folder,name,blob){const file=await folder.getFileHandle(name,{create:true}),stream=await file.createWritable();try{await stream.write(blob);await stream.close();}catch(err){try{await stream.abort();}catch(_){}throw err;}}
+$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;let written=null;try{
+ let folder=null;
+ if('showDirectoryPicker' in window){
+  if(saveDirectory){const permission=await saveDirectory.requestPermission({mode:'readwrite'});if(permission==='granted')folder=saveDirectory;else throw Error('Folder permission was not granted.');}
+  else folder=await chooseFolder();
+ }
+ $('packageStatus').textContent='Preparing your files…';await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const projectBlob=new Blob([JSON.stringify(await makeProject(number))],{type:'application/json'});
+ if(folder){const names=await unusedNames(folder,base);await writeInFolder(folder,names.tiff,tiff);written=names.tiff;await writeInFolder(folder,names.project,projectBlob);$('packageStatus').textContent='Saved '+names.tiff+' and '+names.project+' in '+folder.name+'.';}
+ else{saveBlob(tiff,base+'.tif');saveBlob(projectBlob,base+'_project.json');$('packageStatus').textContent='Downloads requested. Allow multiple downloads if your browser asks.';}
+ }catch(err){if(err.name==='AbortError'&&!written){$('packageStatus').textContent='Save cancelled.';}else{$('submitError').textContent=written?'Saved '+written+', but the project file could not be saved: '+err.message:'Save failed: '+err.message;$('packageStatus').textContent='';}}finally{btn.disabled=false;}});
 $('scanMessage').textContent='Green areas are detected automatically.';
 renderCards();renderSelectors();syncRegionControls();drawScan();showStep(2);
 })();

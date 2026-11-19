@@ -9,3 +9,5 @@ GitHub Pages publishes `index.html`; `static/index.html` is the same page for co
 ## Save and reopen projects
 
 The Save screen downloads the finished TIFF and an editable project JSON as separate files. The JSON embeds the source photograph and artworks, plus the mask, mesh, settings and photo number. It may be large and contains the original images; handle it like the source files. If your browser blocks multiple downloads, allow this site to download multiple files and save again. Use **Open Saved Project** on the Upload screen to continue editing. Project files are processed locally.
+
+In supported browsers, SAVE asks you to choose a folder and grant access. The app remembers that folder until the page is closed; choose Change Folder to select another. Existing matching filenames get a numbered suffix. Other browsers use normal downloads, which may require allowing multiple files. Folder selection is required because browsers do not reveal the source file location.
