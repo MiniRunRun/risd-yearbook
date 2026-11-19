@@ -53,6 +53,8 @@ button,input,textarea{font:inherit}button{cursor:pointer;transition:background .
 /* Reference palette: pale blue and deep red */
 :root{--bg:#afe2ed;--panel:#afe2ed;--raised:#afe2ed;--line:#570706;--muted:#6d1a19;--ink:#570706;--accent:#570706;--red:#9b1c16;color-scheme:light}
 body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-template-columns:repeat(3,minmax(0,1fr))}.step{color:#7c3533}.step[aria-current="step"],.step:hover{color:#570706}.step.done{color:#570706}.lead{color:#570706}.button{border-color:#570706;color:#570706;border-radius:0}.button:hover:not(:disabled){background:#c8edf3}.button.primary,.button.primary:hover:not(:disabled){background:#570706;border-color:#570706;color:#afe2ed}.dropzone,.card-image{background:#c4ebf2;border-color:#570706;color:#570706}.dropzone:hover,.dropzone.dragover{background:#d3f1f5}.canvas-card,.region-scan,.editor-aside,.upload-card,.final-preview{background:#afe2ed;border-color:#570706}.notice{background:#afe2ed;border-color:#570706;color:#570706}.notice strong{color:#570706}.scan-preview,.canvas-wrap{background:#c4ebf2;background-image:none;border-color:#570706}.canvas-pick{background:transparent;color:#570706;border-color:#570706}.canvas-pick.active,.viewmode button.active,.editor-actions .button.active{background:#570706;color:#afe2ed}.canvas-chip b{background:#570706;color:#afe2ed}.field input,.field textarea{background:#d5f1f5;color:#570706;border-color:#570706}.field input::placeholder{color:#8b5554}input[type=range]{background:#9c6564}input[type=range]::-webkit-slider-thumb{background:#570706;border-color:#afe2ed;box-shadow:0 0 0 1px #570706}input[type=range]::-moz-range-thumb{background:#570706;border-color:#afe2ed}.pill-info{border-color:#570706}.status,.canvas-count{color:#570706}.control-note,.small{font-size:14px}.footer{font-size:14px}.logo{letter-spacing:-.055em}.h2{letter-spacing:-.055em}
+
+.simple-editor{display:flex;flex-direction:column;gap:16px;max-width:1150px;margin:0 auto}.simple-editor .editor-area{width:100%}.simple-editor .canvas-wrap{min-height:440px}.simple-editor .student-controls{width:min(100%,620px);display:flex;align-items:center;gap:24px;margin:0 auto}.student-controls .control{flex:1;margin:0}.student-controls .control-head{font-size:16px}.selection-group{width:100%}.selection-group[hidden]{display:none}.selection-group .canvas-selection{display:flex;flex-wrap:wrap;margin:8px 0 0}.canvas-pick{padding:0 18px}.staff-settings{width:100%;border-top:1px solid var(--line);margin-top:30px}.staff-settings summary{cursor:pointer;padding:18px 0;font-size:13px;font-weight:700;letter-spacing:.08em}.staff-settings .editor-aside{position:static;max-height:none;padding:20px;overflow:visible}.staff-settings .editor-actions,.staff-settings .editor-buttons{max-width:520px}.staff-settings .control{max-width:520px}@media(max-width:730px){.simple-editor .canvas-wrap{min-height:270px}.simple-editor .student-controls{gap:14px}.simple-editor .editor-area{order:0}}
 </style>
 </head>
 <body>
@@ -82,12 +84,16 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  <div class="flowactions"><button class="button primary large" id="toCreate" disabled>CONTINUE TO CREATE ↗</button></div>
 </section>
 <section class="page" id="step3" hidden aria-labelledby="createTitle">
- <div class="sectionhead"><div><div class="kicker">02 / CREATE</div><h2 class="h2" id="createTitle">MAKE IT<br>YOUR OWN.</h2><p class="lead">Select a canvas to adjust its artwork, folds and lighting.</p></div><button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button></div>
- <div class="editor-layout">
- <aside class="editor-aside" aria-label="Multi-canvas fabric mapping controls">
-  <h3>01 / Your canvases <span class="pill-info" id="editorCanvasCount">0 FOUND</span></h3>
-  <div class="canvas-selection" id="canvasSelection"></div>
-  <p class="editor-quick-note" id="selectedCanvasNote">Choose a canvas to edit its image, mesh, and fold settings independently.</p>
+ <div class="sectionhead"><div><div class="kicker">02 / CREATE</div><h2 class="h2" id="createTitle">MAKE IT<br>YOUR OWN.</h2><p class="lead">Drag the points and adjust the artwork scale.</p></div><button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button></div>
+ <div class="editor-layout simple-editor">
+  <div id="selectionGroup" class="selection-group"><span class="small">SELECT A CANVAS</span><div class="canvas-selection" id="canvasSelection"></div></div>
+  <div class="editor-area">
+   <div class="canvasbar"><div><h3>Your artwork <span class="micro" id="sizeInfo">—</span></h3></div><div class="viewmode" role="group" aria-label="Preview mode"><button id="viewAfter" class="active" aria-pressed="true">AFTER</button><button id="viewBefore" aria-pressed="false">BEFORE</button></div></div>
+   <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Artwork preview. Drag the nine points to reshape the artwork."></canvas></div>
+   <div class="canvas-foot"><small>Drag the points to adjust your artwork.</small><span class="status" id="message" aria-live="polite">Ready</span></div>
+  </div>
+  <div class="student-controls"><div class="control"><div class="control-head"><label for="zoom">Artwork scale</label><output id="zoomVal"></output></div><input type="range" id="zoom" min="55" max="240" value="100" step="1"></div><button class="button" id="reset">RESET</button></div>
+  <details id="staffSettings" class="staff-settings"><summary>STAFF SETTINGS</summary><aside class="editor-aside" aria-label="Staff advanced settings"><h3>YOUR CANVASES <span class="pill-info" id="editorCanvasCount">0 FOUND</span></h3><p class="editor-quick-note" id="selectedCanvasNote"></p>
   <div class="editor-actions"><button class="button" id="addCanvas">＋ DRAW CANVAS</button><button class="button" id="removeCanvas">REMOVE SELECTED</button><button class="button" id="rescanEditor">↻ RE-DETECT</button><button class="button" id="replaceArtwork">↥ REPLACE IMAGE</button></div>
   <input id="editorArtFile" type="file" accept="image/*" class="hide" aria-label="Replace selected canvas artwork">
   <hr class="panel-divider"><h3>02 / Green detection</h3>
@@ -101,19 +107,13 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div class="control"><div class="control-head"><label for="warp">Fold displacement</label><output id="warpVal"></output></div><input type="range" id="warp" min="0" max="90" value="35" step="1"></div>
   <div class="control"><div class="control-head"><label for="lighting">Fabric lighting</label><output id="lightingVal"></output></div><input type="range" id="lighting" min="0" max="140" value="85" step="1"></div>
   <div class="control"><div class="control-head"><label for="texture">Texture detail</label><output id="textureVal"></output></div><input type="range" id="texture" min="0" max="150" value="65" step="1"></div>
-  <div class="control"><div class="control-head"><label for="zoom">Artwork scale</label><output id="zoomVal"></output></div><input type="range" id="zoom" min="55" max="240" value="100" step="1"></div>
   <hr class="panel-divider"><h3>04 / Refine the selected mesh</h3>
-  <label class="toggleline"><input id="showMesh" type="checkbox" checked>Show canvas outlines + 5×5 mesh</label>
+  <label class="toggleline"><input id="showMesh" type="checkbox" checked>Show canvas outlines + 3×3 mesh</label>
   <p class="control-note">Tap a canvas in the image to select it. Drag lime points to bend that canvas. Hold Shift and drag to move the whole selected mesh. Use Draw Canvas to add a missing green area.</p>
-  <div class="editor-buttons" style="margin-top:14px"><button class="button" id="autoFit">FIT SELECTED</button><button class="button" id="reset">RESET MESH</button></div>
-  <hr class="panel-divider"><div class="editor-buttons"><button class="button" id="defaultSettings">RESET SELECTED</button><button class="button" id="export">↓ EXPORT PNG</button></div>
-  
- </aside>
- <div class="editor-area">
-  <div class="canvasbar"><div><h3>Live composite <span class="micro" id="sizeInfo" style="margin-left:8px">—</span></h3><span class="small">Tap a numbered frame to edit it. Each frame has its own image.</span></div><div class="viewmode" role="group" aria-label="Preview mode"><button id="viewAfter" class="active" aria-pressed="true">AFTER</button><button id="viewBefore" aria-pressed="false">BEFORE</button></div></div>
-  <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Interactive fabric photo composite. Drag green points to adjust artwork distortion."></canvas></div>
-  <div class="canvas-foot"><small>TAP FRAME → SELECT &nbsp;&nbsp; DRAG POINT → BEND &nbsp;&nbsp; SHIFT + DRAG → MOVE MESH</small><span class="status" id="message" aria-live="polite">Ready</span></div>
- </div></div>
+  <div class="editor-buttons"><button class="button" id="autoFit">FIT SELECTED</button><button class="button" id="defaultSettings">RESET STAFF SETTINGS</button></div>
+  <button class="button" id="export" style="margin-top:10px">EXPORT PNG</button>
+  </aside></details>
+ </div>
  <div class="flowactions" id="createActions"><button class="button" data-goto="2">← BACK</button><button class="button primary large" id="toSubmit">CONTINUE TO FINALIZE ↗</button></div>
 </section>
 <section class="page" id="step4" hidden aria-labelledby="finalTitle">
@@ -138,7 +138,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const view=$('view'),ctx=view.getContext('2d',{willReadFrequently:true}),scan=$('scanCanvas');
-const N=5, MAX_CANVASES=12;
+const N=3, MAX_CANVASES=12;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const smoothstep=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const makeCanvas=(w,h)=>{let c=document.createElement('canvas');c.width=w;c.height=h;return c;};
@@ -318,7 +318,7 @@ function renderCards(){const host=$('canvasCards');host.replaceChildren();
   card.append(head,label,file,bottom);card.addEventListener('click',e=>{if(e.target.closest('button,input,label'))return;selectRegion(r.id);});host.append(card);
  });canvasSummary();
 }
-function renderSelectors(){let host=$('canvasSelection');host.replaceChildren();for(const r of regions){let b=document.createElement('button');b.type='button';b.className='canvas-pick'+(selectedId===r.id?' active':'')+(r.artImg?' ready':'');let d=document.createElement('i');d.className='dot';b.append(d,document.createTextNode(labelFor(r)));b.setAttribute('aria-pressed',String(selectedId===r.id));b.addEventListener('click',()=>selectRegion(r.id));host.append(b);}}
+function renderSelectors(){let host=$('canvasSelection');$('selectionGroup').hidden=regions.length<=1;host.replaceChildren();for(const r of regions){let b=document.createElement('button');b.type='button';b.className='canvas-pick'+(selectedId===r.id?' active':'')+(r.artImg?' ready':'');let d=document.createElement('i');d.className='dot';b.append(d,document.createTextNode(labelFor(r)));b.setAttribute('aria-pressed',String(selectedId===r.id));b.addEventListener('click',()=>selectRegion(r.id));host.append(b);}}
 function syncRegionControls(){let r=selected();for(let key of ['warp','lighting','texture','zoom']){const v=r?r.settings[key]:regionDefaults()[key];$(key).value=v;$(key+'Val').textContent=v+'%';$(key).disabled=!r;}
  $('selectedCanvasNote').textContent=r?labelFor(r)+' · '+(r.artImg?r.artName:'No image assigned yet')+' · '+(r.kind==='manual'?'Manual frame':'Detected green area'):'No canvas selected';
  $('removeCanvas').disabled=!r;$('autoFit').disabled=!r;$('reset').disabled=!r;$('replaceArtwork').disabled=!r;
@@ -448,7 +448,7 @@ function drawScan(){let c=scan,cx=c.getContext('2d');cx.clearRect(0,0,c.width,c.
 }
 function paintGuide(cx,r,selectedFlag,width,height){const pts=r.mesh,scale=Math.max(.55,width/1100),line=selectedFlag?'#d9ff57':'rgba(255,255,255,.58)';
  cx.save();cx.strokeStyle=line;cx.lineWidth=selectedFlag?Math.max(1.1,1.65*scale):Math.max(1,1.2*scale);cx.setLineDash(selectedFlag?[]:[7*scale,6*scale]);
- cx.beginPath();let corners=[pts[0],pts[4],pts[24],pts[20]];cx.moveTo(corners[0].x*width,corners[0].y*height);for(const pt of corners.slice(1))cx.lineTo(pt.x*width,pt.y*height);cx.closePath();cx.stroke();cx.setLineDash([]);
+ cx.beginPath();let corners=[pts[0],pts[N-1],pts[N*N-1],pts[N*(N-1)]];cx.moveTo(corners[0].x*width,corners[0].y*height);for(const pt of corners.slice(1))cx.lineTo(pt.x*width,pt.y*height);cx.closePath();cx.stroke();cx.setLineDash([]);
  if(selectedFlag){cx.strokeStyle='rgba(217,255,87,.85)';cx.beginPath();for(let y=0;y<N;y++)for(let x=0;x<N-1;x++){let a=pts[y*N+x],b=pts[y*N+x+1];cx.moveTo(a.x*width,a.y*height);cx.lineTo(b.x*width,b.y*height);}for(let x=0;x<N;x++)for(let y=0;y<N-1;y++){let a=pts[y*N+x],b=pts[(y+1)*N+x];cx.moveTo(a.x*width,a.y*height);cx.lineTo(b.x*width,b.y*height);}cx.stroke();for(const p of pts){cx.beginPath();cx.arc(p.x*width,p.y*height,Math.max(3.3,4*scale),0,Math.PI*2);cx.fillStyle='#d9ff57';cx.fill();cx.strokeStyle='#10120f';cx.stroke();}}
  const n=regions.indexOf(r)+1,p=pts[0],xx=clamp(p.x*width,1,Math.max(1,width-78)),yy=clamp(p.y*height-27,0,Math.max(1,height-27));cx.fillStyle=selectedFlag?'#d9ff57':'#f1f0e6';cx.fillRect(xx,yy,77,26);cx.fillStyle='#11140e';cx.font='bold 12px ui-monospace,monospace';cx.fillText('CANVAS '+n,xx+6,yy+17);cx.restore();}
 function drawPreview(){if(!fabricImg)return;const w=view.width,h=view.height;ctx.clearRect(0,0,w,h);ctx.drawImage(previewMode==='after'&&previewBase?previewBase:fabricImg,0,0,w,h);
@@ -465,6 +465,7 @@ $('toCreate').addEventListener('click',()=>showStep(3));$('toSubmit').addEventLi
 for(const k of ['threshold','feather','recovery']){$(k).value=globals[k];$(k+'Val').textContent=k==='recovery'?globals[k]+'%':(globals[k]/100).toFixed(2);$(k).addEventListener('input',e=>{globals[k]=Number(e.target.value);$(k+'Val').textContent=k==='recovery'?globals[k]+'%':(globals[k]/100).toFixed(2);if(k==='threshold'||k==='recovery'){clearTimeout(detectTimer);detectTimer=setTimeout(()=>detectCanvases({preserve:true}),270);}else requestRender();});}
 for(const k of ['warp','lighting','texture','zoom']){$(k).addEventListener('input',e=>{const r=selected();if(!r)return;r.settings[k]=Number(e.target.value);$(k+'Val').textContent=r.settings[k]+'%';requestRender();});}
 $('showMesh').addEventListener('change',e=>{globals.showMesh=e.target.checked;drawPreview();});
+$('staffSettings').addEventListener('toggle',e=>{if(!e.target.open){drawMode=false;drawRect=null;setSampleMode(false);globals.showMesh=true;$('showMesh').checked=true;globals.showCoverage=false;$('showCoverage').checked=false;setPreviewMode('after');syncRegionControls();drawPreview();}});
 $('showCoverage').addEventListener('change',e=>{globals.showCoverage=e.target.checked;drawPreview();});
 function setSampleMode(on){sampleMode=Boolean(on);if(sampleMode){drawMode=false;drawRect=null;view.style.cursor='crosshair';}else view.style.cursor=drawMode?'crosshair':'default';$('sampleShadow').classList.toggle('active',sampleMode);$('sampleShadow').textContent=sampleMode?'CLICK A DARK FOLD…':'◉ PICK SHADOW COLOR';
  $('sampleStatus').textContent=sampleMode?'Click once on a missed dark fold in the selected canvas. This samples a shade; it does not paint.':((selected()?.samples?.length||0)+' shadow sample(s) in selected canvas.');}
@@ -472,7 +473,7 @@ $('sampleShadow').addEventListener('click',()=>{if(!fabricImg||!selected())retur
 $('clearShadowSamples').addEventListener('click',()=>{const r=selected();if(!r)return;r.samples=[];applyShadowSamples();requestRender();setSampleMode(false);setMessage('Shadow samples cleared from '+labelFor(r)+'.');});
 
 $('autoFit').addEventListener('click',()=>{const r=selected();if(r){r.meshEdited=false;r.mesh=gridForBBox(r.bbox);drawPreview();requestRender();}});
-$('reset').addEventListener('click',()=>{const r=selected();if(r){r.meshEdited=false;r.mesh=gridForBBox(r.bbox);drawPreview();requestRender();setMessage('Selected canvas mesh reset.');}});
+$('reset').addEventListener('click',()=>{const r=selected();if(r){r.meshEdited=false;r.mesh=gridForBBox(r.bbox);r.settings.zoom=regionDefaults().zoom;syncRegionControls();drawPreview();requestRender();setMessage('Canvas and artwork scale reset.');}});
 $('defaultSettings').addEventListener('click',()=>{const r=selected();if(r){r.settings=regionDefaults();syncRegionControls();requestRender();}});
 $('removeCanvas').addEventListener('click',()=>{if(!selected())return;const id=selectedId;regions=regions.filter(r=>r.id!==id);selectedId=regions[0]?.id||null;drawMode=false;previewBase=null;updateUI();requestRender();});
 $('addCanvas').addEventListener('click',()=>{if(!fabricImg)return;if(regions.length>=MAX_CANVASES){setMessage('Maximum '+MAX_CANVASES+' canvases.');return;}setSampleMode(false);drawMode=!drawMode;$('addCanvas').classList.toggle('active',drawMode);view.style.cursor=drawMode?'crosshair':'default';setMessage(drawMode?'Draw a rectangle around the missing green area on the photograph.':'Canvas drawing cancelled.');});
@@ -489,7 +490,7 @@ view.addEventListener('pointerdown',e=>{if(previewMode!=='after')return;const p=
  // Clicking a different area switches the active canvas before editing its points.
  if(target&&target.id!==selectedId){selectRegion(target.id);r=target;nearest=nearestVertex(r,p);}
  if(!r)return;
- if(globals.showMesh&&e.shiftKey){drag={mode:'all',start:p,original:r.mesh.map(q=>({...q})),regionId:r.id};}
+ if(globals.showMesh&&e.shiftKey&&$('staffSettings').open){drag={mode:'all',start:p,original:r.mesh.map(q=>({...q})),regionId:r.id};}
  else if(globals.showMesh&&nearest.dist<28){drag={mode:'point',index:nearest.i,regionId:r.id};}
  else return;
  view.setPointerCapture(e.pointerId);e.preventDefault();});
