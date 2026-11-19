@@ -238,12 +238,26 @@ function findRegions(){
 function detectCanvases({preserve=true}={}){
  if(!fabricImg)return;
  ++detectGeneration;const old=preserve?regions:[],oldAuto=old.filter(r=>r.kind==='auto'),matched=new Set();
- const next=findRegions();segmentation={baseLabels:next.labels,baseAlpha:next.alpha,labels:next.labels,alpha:next.alpha,src:next.src,w:next.w,h:next.h};
+ const next=findRegions(), matches=[];
+ // Match first, without changing the current artwork or matte. If a panel with
+ // artwork disappears or merges, keep the last usable detection intact.
+ for(const item of next.items){let best=null,score=.17;
+  for(const candidate of oldAuto){if(matched.has(candidate.id))continue;const iou=bboxIoU(item.bbox,candidate.bbox);if(iou>score){score=iou;best=candidate;}}
+  if(best)matched.add(best.id);matches.push(best);
+ }
+ if(preserve&&segmentation&&oldAuto.some(r=>r.artImg&&!matched.has(r.id))){
+  globals.threshold=segmentation.threshold;globals.recovery=segmentation.recovery;
+  $('threshold').value=globals.threshold;$('thresholdVal').textContent=(globals.threshold/100).toFixed(2);
+  $('recovery').value=globals.recovery;$('recoveryVal').textContent=globals.recovery+'%';
+  setMessage('Detection could not keep every artwork. Previous settings restored; try a smaller adjustment.');
+  $('scanMessage').textContent='Previous detection kept. Try a smaller adjustment to preserve each artwork.';
+  return;
+ }
+ segmentation={baseLabels:next.labels,baseAlpha:next.alpha,labels:next.labels,alpha:next.alpha,src:next.src,w:next.w,h:next.h,threshold:globals.threshold,recovery:globals.recovery};
  let found=[];
  for(let i=0;i<next.items.length;i++){
-  const b=next.items[i].bbox;let best=null,score=.17;
-  for(const candidate of oldAuto){if(matched.has(candidate.id))continue;const iou=bboxIoU(b,candidate.bbox);if(iou>score){score=iou;best=candidate;}}
-  if(best){matched.add(best.id);best.bbox=b;best.segLabel=i+1;if(!best.meshEdited)best.mesh=gridForBBox(b);found.push(best);}else found.push(makeRegion(b,'auto',i+1));
+  const b=next.items[i].bbox,best=matches[i];
+  if(best){best.bbox=b;best.segLabel=i+1;if(!best.meshEdited)best.mesh=gridForBBox(b);found.push(best);}else found.push(makeRegion(b,'auto',i+1));
  }
  if(!found.length){const b={x0:.18,y0:.17,x1:.82,y1:.83};let prev=oldAuto.find(r=>!matched.has(r.id));let placeholder=prev||makeRegion(b,'manual');placeholder.kind='manual';placeholder.segLabel=0;placeholder.bbox=b;found.push(placeholder);$('scanMessage').textContent='No separate green panels detected. A manual canvas was added; adjust the selection and green threshold.';}
  else $('scanMessage').textContent=found.length+' green panel'+(found.length!==1?'s':'')+' detected. Upload a different image for each canvas. You can add or remove frames in Create.';
