@@ -55,6 +55,9 @@ button,input,textarea{font:inherit}button{cursor:pointer;transition:background .
 body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-template-columns:repeat(3,minmax(0,1fr))}.step{color:#7c3533}.step[aria-current="step"],.step:hover{color:#570706}.step.done{color:#570706}.lead{color:#570706}.button{border-color:#570706;color:#570706;border-radius:0}.button:hover:not(:disabled){background:#c8edf3}.button.primary,.button.primary:hover:not(:disabled){background:#570706;border-color:#570706;color:#afe2ed}.dropzone,.card-image{background:#c4ebf2;border-color:#570706;color:#570706}.dropzone:hover,.dropzone.dragover{background:#d3f1f5}.canvas-card,.region-scan,.editor-aside,.upload-card,.final-preview{background:#afe2ed;border-color:#570706}.notice{background:#afe2ed;border-color:#570706;color:#570706}.notice strong{color:#570706}.scan-preview,.canvas-wrap{background:#c4ebf2;background-image:none;border-color:#570706}.canvas-pick{background:transparent;color:#570706;border-color:#570706}.canvas-pick.active,.viewmode button.active,.editor-actions .button.active{background:#570706;color:#afe2ed}.canvas-chip b{background:#570706;color:#afe2ed}.field input,.field textarea{background:#d5f1f5;color:#570706;border-color:#570706}.field input::placeholder{color:#8b5554}input[type=range]{background:#9c6564}input[type=range]::-webkit-slider-thumb{background:#570706;border-color:#afe2ed;box-shadow:0 0 0 1px #570706}input[type=range]::-moz-range-thumb{background:#570706;border-color:#afe2ed}.pill-info{border-color:#570706}.status,.canvas-count{color:#570706}.control-note,.small{font-size:14px}.footer{font-size:14px}.logo{letter-spacing:-.055em}.h2{letter-spacing:-.055em}
 
 .simple-editor{display:flex;flex-direction:column;gap:16px;max-width:1150px;margin:0 auto}.simple-editor .editor-area{width:100%}.simple-editor .canvas-wrap{min-height:440px}.simple-editor .student-controls{width:min(100%,620px);display:flex;align-items:center;gap:24px;margin:0 auto}.student-controls .control{flex:1;margin:0}.student-controls .control-head{font-size:16px}.selection-group{width:100%}.selection-group[hidden]{display:none}.selection-group .canvas-selection{display:flex;flex-wrap:wrap;margin:8px 0 0}.canvas-pick{padding:0 18px}.staff-settings{width:100%;border-top:1px solid var(--line);margin-top:30px}.staff-settings summary{cursor:pointer;padding:18px 0;font-size:13px;font-weight:700;letter-spacing:.08em}.staff-settings .editor-aside{position:static;max-height:none;padding:20px;overflow:visible}.staff-settings .editor-actions,.staff-settings .editor-buttons{max-width:520px}.staff-settings .control{max-width:520px}@media(max-width:730px){.simple-editor .canvas-wrap{min-height:270px}.simple-editor .student-controls{gap:14px}.simple-editor .editor-area{order:0}}
+
+/* Put staff tools to the left while keeping the artwork prominent. */
+.simple-editor{display:grid;grid-template-columns:minmax(190px,240px) minmax(0,1fr);grid-template-areas:'staff select' 'staff preview' 'staff controls';align-items:start;column-gap:24px;row-gap:14px;max-width:1400px}.selection-group{grid-area:select}.simple-editor .editor-area{grid-area:preview}.simple-editor .student-controls{grid-area:controls}.staff-settings{grid-area:staff;margin:0;border:1px solid var(--line);position:sticky;top:100px;max-height:calc(100vh - 120px);overflow:auto}.staff-settings summary{padding:16px}.staff-settings .editor-aside{border:0;border-top:1px solid var(--line);padding:16px}.sectionhead .kicker{margin-bottom:10px}.page{padding-top:28px}@media(max-width:730px){.simple-editor{display:flex;flex-direction:column}.simple-editor .selection-group{order:0}.simple-editor .editor-area{order:1}.simple-editor .student-controls{order:2}.simple-editor .staff-settings{order:3;position:static;max-height:none;margin-top:16px}.sectionhead .button{margin-top:12px}}
 </style>
 </head>
 <body>
@@ -62,7 +65,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 <div class="shell">
 <header class="topbar">
  <div class="logo" aria-label="RISD Yearbook 2027">RISD<span class="dash"> / </span>YEARBOOK 2027</div>
- <div class="top-right"><button id="headerDemo" class="button tiny">TRY DEMO ↗</button></div>
+
 </header>
 <nav class="steps" aria-label="Student workflow">
  <button class="step" data-goto="2"><span class="step-num">01</span><span><span class="step-name">Upload</span></span></button>
@@ -71,7 +74,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 </nav>
 <main id="main">
 <section class="page" id="step2" aria-labelledby="uploadTitle">
- <div class="sectionhead"><div><div class="kicker">01 / UPLOAD</div><h2 class="h2" id="uploadTitle">ONE PHOTO.<br>MANY WORLDS.</h2><p class="lead">Upload a photo and add artwork to each green area.</p></div></div>
+ <div class="sectionhead"><div><div class="kicker" id="uploadTitle">01 / UPLOAD</div><p class="lead">Upload a photo and add artwork to each green area.</p></div></div>
  <div class="notice"><strong>LOCAL UPLOAD</strong>Your photos and artwork stay on this device. Upload a NEF, JPG, PNG, or WebP photo. NEF decoding happens on your device.</div><div class="upload-grid multi-upload">
   <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp,.nef" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>NEF / JPG / PNG / WEBP</span></div></div>
   <div class="region-scan"><div class="scan-head"><strong>B / Detect canvases</strong><span class="canvas-count" id="detectedCount" aria-live="polite">UPLOAD TO SCAN</span></div><div class="scan-preview"><canvas id="scanCanvas" width="640" height="420" aria-label="Detected green panels highlighted with their canvas numbers"></canvas></div><div class="small" id="scanMessage">Shadow-aware green detection. Deep folds are recovered automatically; separate regions stay independent.</div><div class="editor-buttons"><button class="button" id="rescanUpload" disabled>↻ SCAN AGAIN</button></div></div>
@@ -84,7 +87,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  <div class="flowactions"><button class="button primary large" id="toCreate" disabled>CONTINUE TO CREATE ↗</button></div>
 </section>
 <section class="page" id="step3" hidden aria-labelledby="createTitle">
- <div class="sectionhead"><div><div class="kicker">02 / CREATE</div><h2 class="h2" id="createTitle">MAKE IT<br>YOUR OWN.</h2><p class="lead">Drag the points and adjust the artwork scale.</p></div><button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button></div>
+ <div class="sectionhead"><div><div class="kicker" id="createTitle">02 / CREATE</div><p class="lead">Drag the points and adjust the artwork scale.</p></div><button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button></div>
  <div class="editor-layout simple-editor">
   <div id="selectionGroup" class="selection-group"><span class="small">SELECT A CANVAS</span><div class="canvas-selection" id="canvasSelection"></div></div>
   <div class="editor-area">
@@ -117,7 +120,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  <div class="flowactions" id="createActions"><button class="button" data-goto="2">← BACK</button><button class="button primary large" id="toSubmit">CONTINUE TO FINALIZE ↗</button></div>
 </section>
 <section class="page" id="step4" hidden aria-labelledby="finalTitle">
- <div class="sectionhead"><div><div class="kicker">03 / SAVE</div><h2 class="h2" id="finalTitle">YOUR WORLD.<br>YOUR STORY.</h2><p class="lead">Enter your photo number and save your finished image.</p></div></div>
+ <div class="sectionhead"><div><div class="kicker" id="finalTitle">03 / SAVE</div><p class="lead">Enter your photo number and save your finished image.</p></div></div>
  <div class="final-grid">
   <div class="final-preview"><canvas id="finalCanvas" width="1000" height="700" aria-label="Final image preview"></canvas><div class="preview-caption"><span>FINAL COMPOSITE</span><span id="finalDimensions">—</span></div><button class="button full" id="editAgain" style="margin-top:17px">← EDIT IMAGE</button></div>
   <div>
@@ -313,9 +316,7 @@ function renderCards(){const host=$('canvasCards');host.replaceChildren();
   const input=document.createElement('input');input.type='file';input.accept='image/*,.heic,.heif';input.setAttribute('aria-label','Upload image for '+labelFor(r));input.addEventListener('change',()=>loadImageFile(input.files[0],r.id));
   label.append(input);label.addEventListener('dragover',e=>{e.preventDefault();label.style.borderColor='#d9ff57';});label.addEventListener('dragleave',()=>label.style.borderColor='');label.addEventListener('drop',e=>{e.preventDefault();label.style.borderColor='';loadImageFile(e.dataTransfer.files[0],r.id);});
   const file=document.createElement('div');file.className='card-filename';file.textContent=r.artImg?r.artName:'No image selected';
-  const bottom=document.createElement('div');bottom.className='card-bottom';
-  ['TYPE','DREAM','DOTS'].forEach((name,i)=>{let b=document.createElement('button');b.type='button';b.className='button';b.textContent='PRESET '+name;b.setAttribute('aria-label','Use '+name+' image in '+labelFor(r));b.addEventListener('click',()=>{assignArtwork(r,makePreset(i),'Preset '+name,null,true);});bottom.append(b);});
-  card.append(head,label,file,bottom);card.addEventListener('click',e=>{if(e.target.closest('button,input,label'))return;selectRegion(r.id);});host.append(card);
+  card.append(head,label,file);card.addEventListener('click',e=>{if(e.target.closest('button,input,label'))return;selectRegion(r.id);});host.append(card);
  });canvasSummary();
 }
 function renderSelectors(){let host=$('canvasSelection');$('selectionGroup').hidden=regions.length<=1;host.replaceChildren();for(const r of regions){let b=document.createElement('button');b.type='button';b.className='canvas-pick'+(selectedId===r.id?' active':'')+(r.artImg?' ready':'');let d=document.createElement('i');d.className='dot';b.append(d,document.createTextNode(labelFor(r)));b.setAttribute('aria-pressed',String(selectedId===r.id));b.addEventListener('click',()=>selectRegion(r.id));host.append(b);}}
@@ -509,19 +510,6 @@ function saveBlob(blob,name){const url=URL.createObjectURL(blob),a=document.crea
 async function makeCompositeBlob(){if(!fabricImg||!regions.some(r=>r.artImg))throw Error('Upload your photograph and at least one artwork.');const {w,h}=renderResolution();if(w*h>11e6)throw Error('Image is too large to render in this browser.');await yieldFrame();return canvasBlob(renderAt(w,h));}
 async function exportPng(btn){const label=btn.textContent;btn.disabled=true;btn.textContent='RENDERING…';try{setMessage('Exporting all '+regions.length+' canvases…');const blob=await makeCompositeBlob();saveBlob(blob,'RISD_YEARBOOK_2027_MULTI_CANVAS_FINAL.png');setMessage('PNG saved with all canvases.');}catch(e){console.error(e);setMessage('Export failed: '+e.message);alert('Export failed: '+e.message);}finally{btn.disabled=false;btn.textContent=label;}}
 $('export').addEventListener('click',()=>exportPng($('export')));$('downloadPNG').addEventListener('click',()=>exportPng($('downloadPNG')));
-function makeDemoFabric(){const c=makeCanvas(1120,750),cx=c.getContext('2d'),id=cx.createImageData(c.width,c.height),d=id.data;
- const frames=[{x0:70,y0:94,x1:340,y1:654},{x0:417,y0:118,x1:693,y1:635},{x0:773,y0:77,x1:1040,y1:670}];
- for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){let p=(y*c.width+x)*4;const grain=1.9*Math.sin(x*1.11+y*.67)+1.2*Math.cos(y*.37+x*.31),bg=39+14*y/c.height;let r=bg+grain,g=bg+2+grain,b=bg+grain;
- for(let f=0;f<frames.length;f++){const a=frames[f],edge=5*Math.sin(y/55+f*2),inside=(x>a.x0+edge&&x<a.x1+edge&&y>a.y0+3*Math.sin(x/37)&&y<a.y1+4*Math.sin(x/42));if(!inside)continue;
-  const fold=.6*Math.sin((x-a.x0)/28+y/114+f*.8)+.26*Math.cos(x/15-y/107),deep=-39*Math.pow(Math.max(0,Math.cos(x/24+y/121+f)),7),shade=fold*39+deep+18+7*Math.sin(y/70);
-  r=28+shade*.18+grain*.3;g=133+shade*.74+grain;b=53+shade*.33+grain*.5;break;
- }
- d[p]=clamp(r,0,255);d[p+1]=clamp(g,0,255);d[p+2]=clamp(b,0,255);d[p+3]=255;
- }
- cx.putImageData(id,0,0);cx.fillStyle='#101410';cx.fillRect(0,689,1120,61);cx.fillStyle='#7a8278';cx.font='14px ui-monospace,monospace';cx.fillText('THREE INDEPENDENT GREEN PANELS / DEMONSTRATION',72,727);return c;}
-function makePreset(i){let c=makeCanvas(700,700),g=c.getContext('2d');if(i===0){g.fillStyle='#eee9dd';g.fillRect(0,0,700,700);g.save();g.translate(350,350);g.rotate(-.15);for(let x=-550;x<600;x+=64){g.fillStyle=((x/64|0)&1)?'#ef512f':'#161616';g.fillRect(x,-600,32,1200);}g.restore();g.fillStyle='#d9ff57';g.fillRect(65,255,570,180);g.fillStyle='#141414';g.font='900 118px Arial';g.fillText('WORLD',68,392);}else if(i===1){let gr=g.createLinearGradient(0,0,700,700);gr.addColorStop(0,'#c9f7ff');gr.addColorStop(.36,'#9d97ff');gr.addColorStop(.75,'#ec8eb2');gr.addColorStop(1,'#ffde8f');g.fillStyle=gr;g.fillRect(0,0,700,700);for(let j=0;j<8;j++){g.beginPath();g.ellipse(350,350,40+j*40,45+j*31,-.2,0,Math.PI*2);g.strokeStyle=`rgba(10,10,55,${.55-j*.047})`;g.lineWidth=8;g.stroke();}}else{g.fillStyle='#f2f0de';g.fillRect(0,0,700,700);for(let y=30;y<700;y+=28)for(let x=30;x<700;x+=28){g.fillStyle=(x+y)%3?'#141814':'#ff4b20';g.beginPath();g.arc(x+(y%50),y,6+5*Math.sin((x+y)*.03),0,Math.PI*2);g.fill();}g.fillStyle='#151716';g.fillRect(100,270,500,160);g.fillStyle='#d9ff57';g.font='900 72px Arial';g.fillText('ELSEWHERE',112,370);}return c;}
-function loadDemo(goToEditor=true){useFabric(makeDemoFabric(),'Demo three green-screen panels',null,true);regions.filter(r=>r.kind==='auto').forEach((r,i)=>{r.artImg=makePreset(i%3);r.artName='Preset '+['TYPE','DREAM','DOTS'][i%3];r.preset=true;});selectedId=regions[0]?.id;updateUI();requestRender();$('uploadError').textContent='';if(goToEditor)showStep(3);}
-$('headerDemo').addEventListener('click',()=>loadDemo(true));
 const asciiSafe=s=>(s||'untitled').replace(/[^a-z0-9_\-]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,56)||'world';
 const utf8=s=>new TextEncoder().encode(s);
 const CRC_TABLE=(()=>{let t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
