@@ -14,4 +14,6 @@ In supported browsers, SAVE asks you to choose a folder and grant access. The ap
 
 ## Artwork library
 
-Upload multiple artwork images on the Upload screen, or use **+ Add** in Create. Drag a thumbnail onto a canvas to replace its artwork. On touchscreens, select a thumbnail and then tap the canvas; on multi-canvas photos you can also select the canvas button. Unassigned library images are included in the editable project JSON, which can increase its size.
+Upload multiple artwork images on the Upload screen, or use **+ Add** in Create. Select the canvas, then click or tap a thumbnail to replace its artwork. Unassigned library images are included in the editable project JSON, which can increase its size.
+
+On the Create screen use Command-Z (Ctrl-Z on Windows) to undo an edit, and Shift-Command-Z (Ctrl-Shift-Z) to redo. History is kept only for the current page session.
