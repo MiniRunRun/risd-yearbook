@@ -109,6 +109,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  #step3 .canvas-wrap{min-height:270px}
  #step3 #view{position:static;max-width:100%;max-height:60vh}
 }
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 </head>
 <body>
@@ -180,10 +182,9 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div>
    <form id="submissionForm" novalidate>
     <div class="field"><label for="photoNumber">Which photo number is this? <span class="required">*</span></label><input id="photoNumber" inputmode="numeric" pattern="[1-9][0-9]*" placeholder="e.g. 1" required></div>
-    <div class="notice"><strong>LOCAL DOWNLOAD</strong><span>Your TIFF and editable project JSON download as separate files.</span></div>
     <div class="validation" id="submitError" role="alert"></div>
-    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE TIFF + PROJECT</button><button type="button" class="button" id="downloadProject">DOWNLOAD PROJECT JSON</button><button type="button" class="button" id="downloadPNG">DOWNLOAD PNG</button></div>
-    <p class="small" id="packageStatus">Open the saved project JSON here to continue editing. TIFF is 8-bit per channel.</p>
+    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE</button></div>
+    <span id="packageStatus" role="status" class="sr-only"></span>
    </form>
   </div>
  </div>
@@ -563,7 +564,7 @@ function canvasBlob(canvas,type='image/png'){return new Promise((resolve,reject)
 function saveBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);}
 async function makeCompositeBlob(){if(!fabricImg||!regions.some(r=>r.artImg))throw Error('Upload your photograph and at least one artwork.');const {w,h}=renderResolution();if(w*h>11e6)throw Error('Image is too large to render in this browser.');await yieldFrame();return canvasBlob(renderAt(w,h));}
 async function exportPng(btn){const label=btn.textContent;btn.disabled=true;btn.textContent='RENDERING…';try{setMessage('Exporting all '+regions.length+' canvases…');const blob=await makeCompositeBlob();saveBlob(blob,'RISD_YEARBOOK_2027_MULTI_CANVAS_FINAL.png');setMessage('PNG saved with all canvases.');}catch(e){console.error(e);setMessage('Export failed: '+e.message);alert('Export failed: '+e.message);}finally{btn.disabled=false;btn.textContent=label;}}
-$('export').addEventListener('click',()=>exportPng($('export')));$('downloadPNG').addEventListener('click',()=>exportPng($('downloadPNG')));
+$('export').addEventListener('click',()=>exportPng($('export')));
 const asciiSafe=s=>(s||'untitled').replace(/[^a-z0-9_\-]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,56)||'world';
 const utf8=s=>new TextEncoder().encode(s);
 const CRC_TABLE=(()=>{let t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
@@ -609,8 +610,7 @@ async function openProject(file){
  regions=restored;nextId=Math.max(0,...regions.map(r=>r.id))+1;selectedId=regions.some(r=>r.id===project.selectedId)?project.selectedId:regions[0].id;applyShadowSamples();$('photoNumber').value=project.photoNumber||'';previewBase=null;updateUI();requestRender();$('uploadError').textContent='';showStep(3);setMessage('Project opened. Continue editing.');
  }catch(err){console.error(err);$('uploadError').textContent='Could not open project: '+err.message;}finally{$('projectFile').value='';}}
 $('projectFile').addEventListener('change',e=>openProject(e.target.files[0]));
-$('downloadProject').addEventListener('click',async()=>{const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}const button=$('downloadProject');button.disabled=true;try{const project=await makeProject(number),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Editable project downloaded.';$('submitError').textContent='';}catch(err){$('submitError').textContent='Could not save project: '+err.message;}finally{button.disabled=false;}});
-$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;$('packageStatus').textContent='Preparing TIFF and editable project…';try{await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const project=await makeProject(number);saveBlob(tiff,base+'.tif');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Saved TIFF and editable JSON separately. If your browser blocks a download, use DOWNLOAD PROJECT JSON.';}catch(err){$('submitError').textContent='Export failed: '+err.message;$('packageStatus').textContent='Export failed.';}finally{btn.disabled=false;}});
+$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;$('packageStatus').textContent='Preparing TIFF and editable project…';try{await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const project=await makeProject(number);saveBlob(tiff,base+'.tif');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Download requests sent for the TIFF and editable project.';}catch(err){$('submitError').textContent='Export failed: '+err.message;$('packageStatus').textContent='Export failed.';}finally{btn.disabled=false;}});
 $('scanMessage').textContent='Green areas are detected automatically.';
 renderCards();renderSelectors();syncRegionControls();drawScan();showStep(2);
 })();

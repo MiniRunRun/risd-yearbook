@@ -8,4 +8,4 @@ GitHub Pages publishes `index.html`; `static/index.html` is the same page for co
 
 ## Save and reopen projects
 
-The Save screen downloads the finished TIFF and an editable project JSON as separate files. The JSON embeds the source photograph and artworks, plus the mask, mesh, settings and photo number. It may be large and contains the original images; handle it like the source files. If a browser blocks multiple downloads, use the separate **Download Project JSON** button. Use **Open Saved Project** on the Upload screen to continue editing. Project files are processed locally.
+The Save screen downloads the finished TIFF and an editable project JSON as separate files. The JSON embeds the source photograph and artworks, plus the mask, mesh, settings and photo number. It may be large and contains the original images; handle it like the source files. If your browser blocks multiple downloads, allow this site to download multiple files and save again. Use **Open Saved Project** on the Upload screen to continue editing. Project files are processed locally.
