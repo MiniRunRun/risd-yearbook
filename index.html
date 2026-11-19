@@ -374,8 +374,22 @@ function renderAt(w,h){const base=makeCanvas(w,h),bc=base.getContext('2d',{willR
  const blur=boxBlurGreen(pix,w,h,Math.max(2,Math.round(w/160)));let sum=0,count=0;for(let idx=0;idx<w*h;idx+=3){const k=idx*4;if(greenScore(pix[k],pix[k+1],pix[k+2])>.15){sum+=blur[idx];count++;}}
  const mean=count?sum/count:130,threshold=globals.threshold/100,feather=Math.max(.001,globals.feather/100),seg=segmentation;
  const sw=seg?.w||0,sh=seg?.h||0,labels=seg?.labels,maskAlpha=seg?.alpha;
- function segmentationMask(x,y,label){if(!labels||!maskAlpha)return 0;const sx=clamp(Math.floor((x+.5)*sw/w),0,sw-1),sy=clamp(Math.floor((y+.5)*sh/h),0,sh-1);const p=sy*sw+sx;return labels[p]===label?maskAlpha[p]/255:0;}
+ // Smooth the low-resolution detection mask before mapping it to the output.
+ // Canvas interpolation removes blocky nearest-neighbour scaling, while a small
+ // adjustable blur softens the edge without mixing separate canvas labels.
+ function makeRegionMask(label){
+  const source=makeCanvas(sw,sh),sc=source.getContext('2d'),image=sc.createImageData(sw,sh);
+  for(let i=0;i<labels.length;i++){if(labels[i]===label)image.data[i*4+3]=maskAlpha[i];}
+  sc.putImageData(image,0,0);
+  const target=makeCanvas(w,h),tc=target.getContext('2d',{willReadFrequently:true});
+  tc.imageSmoothingEnabled=true;tc.imageSmoothingQuality='high';
+  const blur=globals.feather/30*2*(w/sw);
+  if(blur>.05)tc.filter='blur('+blur.toFixed(2)+'px)';
+  tc.drawImage(source,0,0,w,h);tc.filter='none';
+  return tc.getImageData(0,0,w,h).data;
+ }
  for(const region of regions){if(!region.artImg)continue;
+  const smoothMask=region.kind==='auto'&&labels?makeRegionMask(region.segLabel):null;
   const {data:art,w:aw,h:ah}=artPixels(region.artImg),settings=region.settings;
   const lighting=settings.lighting/100,texture=settings.texture/100,warp=settings.warp*(w/1400),zoom=settings.zoom/100;
   const verts=region.mesh.map((p,i)=>({x:p.x*w,y:p.y*h,u:(i%N)/(N-1),v:Math.floor(i/N)/(N-1)}));
@@ -393,10 +407,7 @@ function renderAt(w,h){const base=makeCanvas(w,h),bc=base.getContext('2d',{willR
      // here made recovered shadows disappear even when already inside the detected canvas.
      let mask;
      if(region.kind==='auto'&&labels){
-       mask=segmentationMask(x,y,region.segLabel);
-       if(mask<=.001)continue;
-       const radius=globals.feather/30*3.4*(w/sw);
-       if(radius>.1)mask=.74*mask+.065*(segmentationMask(x-radius,y,region.segLabel)+segmentationMask(x+radius,y,region.segLabel)+segmentationMask(x,y-radius,region.segLabel)+segmentationMask(x,y+radius,region.segLabel));
+       mask=smoothMask[i+3]/255;
      }else{
        const score=greenScore(r,g,bcol);
        mask=smoothstep(threshold-feather*.5,threshold+feather*.5,score);
