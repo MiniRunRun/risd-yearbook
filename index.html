@@ -92,7 +92,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div id="selectionGroup" class="selection-group"><span class="small">SELECT A CANVAS</span><div class="canvas-selection" id="canvasSelection"></div></div>
   <div class="editor-area">
    <div class="canvasbar"><div><h3>Your artwork <span class="micro" id="sizeInfo">—</span></h3></div><div class="viewmode" role="group" aria-label="Preview mode"><button id="viewAfter" class="active" aria-pressed="true">AFTER</button><button id="viewBefore" aria-pressed="false">BEFORE</button></div></div>
-   <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Artwork preview. Drag the nine points to reshape the artwork."></canvas></div>
+   <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Artwork preview. Drag the grid points to reshape the artwork."></canvas></div>
    <div class="canvas-foot"><small>Drag the points to adjust your artwork.</small><span class="status" id="message" aria-live="polite">Ready</span></div>
   </div>
   <div class="student-controls"><div class="control"><div class="control-head"><label for="zoom">Artwork scale</label><output id="zoomVal"></output></div><input type="range" id="zoom" min="55" max="240" value="100" step="1"></div><button class="button" id="reset">RESET</button></div>
@@ -111,7 +111,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div class="control"><div class="control-head"><label for="lighting">Fabric lighting</label><output id="lightingVal"></output></div><input type="range" id="lighting" min="0" max="140" value="85" step="1"></div>
   <div class="control"><div class="control-head"><label for="texture">Texture detail</label><output id="textureVal"></output></div><input type="range" id="texture" min="0" max="150" value="65" step="1"></div>
   <hr class="panel-divider"><h3>04 / Refine the selected mesh</h3>
-  <label class="toggleline"><input id="showMesh" type="checkbox" checked>Show canvas outlines + 3×3 mesh</label>
+  <label class="toggleline"><input id="showMesh" type="checkbox" checked>Show canvas outlines + 3×3 grid</label>
   <p class="control-note">Tap a canvas in the image to select it. Drag lime points to bend that canvas. Hold Shift and drag to move the whole selected mesh. Use Draw Canvas to add a missing green area.</p>
   <div class="editor-buttons"><button class="button" id="autoFit">FIT SELECTED</button><button class="button" id="defaultSettings">RESET STAFF SETTINGS</button></div>
   <button class="button" id="export" style="margin-top:10px">EXPORT PNG</button>
@@ -141,7 +141,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const view=$('view'),ctx=view.getContext('2d',{willReadFrequently:true}),scan=$('scanCanvas');
-const N=3, MAX_CANVASES=12;
+const N=4, MAX_CANVASES=12;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const smoothstep=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const makeCanvas=(w,h)=>{let c=document.createElement('canvas');c.width=w;c.height=h;return c;};
