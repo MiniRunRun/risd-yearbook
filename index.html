@@ -129,8 +129,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div hidden><label for="feather">Mask edge feather</label><output id="featherVal"></output><input type="range" id="feather" min="0" max="30" value="10" step="1"></div>
   <hr class="panel-divider"><h3>03 / Selected canvas — Fold & light</h3>
   <div class="control"><div class="control-head"><label for="warp">Fold displacement</label><output id="warpVal"></output></div><input type="range" id="warp" min="0" max="90" value="35" step="1"></div>
-  <div class="control"><div class="control-head"><label for="lighting">Fabric lighting</label><output id="lightingVal"></output></div><input type="range" id="lighting" min="0" max="140" value="85" step="1"></div>
-  <div class="control"><div class="control-head"><label for="texture">Texture detail</label><output id="textureVal"></output></div><input type="range" id="texture" min="0" max="150" value="65" step="1"></div>
+  <div class="control"><div class="control-head"><label for="lighting">Fabric lighting</label><output id="lightingVal"></output></div><input type="range" id="lighting" min="0" max="140" value="100" step="1"></div>
+  <div class="control"><div class="control-head"><label for="texture">Texture detail</label><output id="textureVal"></output></div><input type="range" id="texture" min="0" max="150" value="100" step="1"></div>
   <hr class="panel-divider"><h3>04 / Refine the selected mesh</h3>
   <label class="toggleline"><input id="showMesh" type="checkbox" checked>Show canvas outlines + 3×3 grid</label>
   <p class="control-note">Tap a canvas in the image to select it. Drag lime points to bend that canvas. Hold Shift and drag to move the whole selected mesh. Use Draw Canvas to add a missing green area.</p>
@@ -167,7 +167,7 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const smoothstep=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const makeCanvas=(w,h)=>{let c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 const greenScore=(r,g,b)=>(g-Math.max(r,b))/Math.max(35,g);
-const regionDefaults=()=>({warp:35,lighting:85,texture:65,zoom:100});
+const regionDefaults=()=>({warp:35,lighting:100,texture:100,zoom:100});
 const globals={threshold:21,recovery:75,feather:10,showMesh:true,showCoverage:false};
 let fabricImg=null,fabricName='',fabricFile=null,isDemoFabric=false;
 let regions=[],selectedId=null,nextId=1,segmentation=null,previewBase=null,renderTimer=null,detectTimer=null,detectGeneration=0;
