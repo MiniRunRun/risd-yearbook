@@ -113,6 +113,8 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 .button[hidden]{display:none!important}
+
+.art-library{border:1px solid var(--line);padding:12px}.art-library-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.art-library p{margin:8px 0}.art-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:180px;overflow:auto}.art-library-item{min-width:0;padding:3px;background:transparent;border:1px solid var(--line);color:var(--ink);text-align:left}.art-library-item.selected{outline:3px solid var(--ink);outline-offset:1px}.art-library-item img{width:100%;height:55px;object-fit:cover;display:block}.art-library-item span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;margin-top:3px}#libraryStatus:empty{display:none}.canvas-wrap:has(canvas:hover){border-color:var(--ink)}
 </style>
 </head>
 <body>
@@ -145,6 +147,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  <div class="sectionhead"><div><div class="kicker" id="createTitle">02 / CREATE</div><p class="lead">Drag the points and adjust the artwork scale.</p></div></div>
  <div class="editor-layout simple-editor">
   <div class="editor-sidebar">
+  <div class="art-library"><div class="art-library-head"><strong>ARTWORK</strong><label class="button tiny upload-trigger" for="libraryInput">＋ ADD</label><input id="libraryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hide" aria-label="Add artwork images"></div><p class="small">Drag an image onto a canvas, or select it and tap a canvas.</p><div id="artLibrary" class="art-library-grid" aria-label="Artwork library"></div><p id="libraryStatus" class="small" role="status"></p></div>
   <div id="selectionGroup" class="selection-group"><span class="small">SELECT A CANVAS</span><div class="canvas-selection" id="canvasSelection"></div></div>
   <div class="student-controls"><div class="control"><div class="control-head"><label for="zoom">Artwork scale</label><output id="zoomVal"></output></div><input type="range" id="zoom" min="55" max="240" value="100" step="1"></div><button class="button" id="reset">RESET</button></div>
    <button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button>
@@ -207,6 +210,7 @@ const regionDefaults=()=>({warp:35,lighting:100,texture:100,zoom:100});
 const globals={threshold:21,recovery:10,feather:10,showMesh:true,showCoverage:false};
 let fabricImg=null,fabricName='',fabricFile=null,isDemoFabric=false;
 let regions=[],selectedId=null,nextId=1,segmentation=null,previewBase=null,renderTimer=null,detectTimer=null,detectGeneration=0;
+let artworkLibrary=[],pendingArtwork=null,dragArtwork=null;
 let currentStep=2,previewMode='after',drag=null,drawMode=false,drawRect=null,sampleMode=false,coverageCanvas=null;
 const artCache=new WeakMap();
 function setMessage(text){$('message').textContent=text;}
@@ -376,7 +380,12 @@ function renderCards(){const host=$('canvasCards');host.replaceChildren();
   card.append(head,label,file);card.addEventListener('click',e=>{if(e.target.closest('button,input,label'))return;selectRegion(r.id);});host.append(card);
  });canvasSummary();
 }
-function renderSelectors(){let host=$('canvasSelection');$('selectionGroup').hidden=regions.length<=1;host.replaceChildren();for(const r of regions){let b=document.createElement('button');b.type='button';b.className='canvas-pick'+(selectedId===r.id?' active':'')+(r.artImg?' ready':'');let d=document.createElement('i');d.className='dot';b.append(d,document.createTextNode(labelFor(r)));b.setAttribute('aria-pressed',String(selectedId===r.id));b.addEventListener('click',()=>selectRegion(r.id));host.append(b);}}
+function addToLibrary(img,name,file){let item=artworkLibrary.find(x=>x.file&&file&&x.file.name===file.name&&x.file.size===file.size&&x.file.lastModified===file.lastModified);if(!item){item={img,name,file,thumb:thumbURL(img)};artworkLibrary.push(item);}return item;}
+function renderLibrary(){const host=$('artLibrary');host.replaceChildren();for(const item of artworkLibrary){const button=document.createElement('button');button.type='button';button.className='art-library-item'+(pendingArtwork===item?' selected':'');button.draggable=true;button.setAttribute('aria-label','Select artwork '+item.name);button.setAttribute('aria-pressed',String(pendingArtwork===item));const img=document.createElement('img');img.src=item.thumb;img.alt='';const label=document.createElement('span');label.textContent=item.name;button.append(img,label);button.addEventListener('click',()=>{pendingArtwork=pendingArtwork===item?null:item;renderLibrary();$('libraryStatus').textContent=pendingArtwork?'Choose a canvas on the image or above.':'Artwork selection cleared.';});button.addEventListener('dragstart',e=>{dragArtwork=item;e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/plain','yearbook-artwork');});button.addEventListener('dragend',()=>{dragArtwork=null;});host.append(button);}}
+function applyLibraryArtwork(item,region){if(!item||!region)return;pendingArtwork=null;assignArtwork(region,item.img,item.name,item.file);renderLibrary();$('libraryStatus').textContent='Artwork placed on '+labelFor(region)+'.';}
+async function addLibraryFiles(files,assignEmpty=false){const empty=regions.filter(r=>!r.artImg);let loaded=0;for(const file of files){try{const img=await loadImageFromFile(file),item=addToLibrary(img,file.name,file);if(assignEmpty&&empty.length){const r=empty.shift();r.artImg=item.img;r.artName=item.name;r.artFile=item.file;r.preset=false;}loaded++;}catch(err){$('uploadError').textContent=err.message;$('libraryStatus').textContent=err.message;}}renderLibrary();updateUI();requestRender();if(loaded)$('libraryStatus').textContent=loaded+' image'+(loaded===1?'':'s')+' added.';}
+$('libraryInput').addEventListener('change',async e=>{await addLibraryFiles(Array.from(e.target.files));e.target.value='';});
+function renderSelectors(){let host=$('canvasSelection');$('selectionGroup').hidden=regions.length<=1;host.replaceChildren();for(const r of regions){let b=document.createElement('button');b.type='button';b.className='canvas-pick'+(selectedId===r.id?' active':'')+(r.artImg?' ready':'');let d=document.createElement('i');d.className='dot';b.append(d,document.createTextNode(labelFor(r)));b.setAttribute('aria-pressed',String(selectedId===r.id));b.addEventListener('click',()=>{if(pendingArtwork)applyLibraryArtwork(pendingArtwork,r);else selectRegion(r.id);});b.addEventListener('dragover',e=>{if(dragArtwork)e.preventDefault();});b.addEventListener('drop',e=>{if(dragArtwork){e.preventDefault();applyLibraryArtwork(dragArtwork,r);dragArtwork=null;}});host.append(b);}}
 function syncRegionControls(){let r=selected();for(let key of ['warp','lighting','texture','zoom']){const v=r?r.settings[key]:regionDefaults()[key];$(key).value=v;$(key+'Val').textContent=v+'%';$(key).disabled=!r;}
  $('selectedCanvasNote').textContent=r?labelFor(r)+' · '+(r.artImg?r.artName:'No image assigned yet')+' · '+(r.kind==='manual'?'Manual frame':'Detected green area'):'No canvas selected';
  $('removeCanvas').disabled=!r;$('autoFit').disabled=!r;$('reset').disabled=!r;$('replaceArtwork').disabled=!r;
@@ -386,7 +395,7 @@ function syncRegionControls(){let r=selected();for(let key of ['warp','lighting'
 }
 function updateUI(){canvasSummary();renderCards();renderSelectors();syncRegionControls();drawScan();drawPreview();}
 function selectRegion(id){if(!regions.some(r=>r.id===id))return;selectedId=id;renderCards();renderSelectors();syncRegionControls();drawPreview();}
-function assignArtwork(r,img,name,file,preset=false){r.artImg=img;r.artName=name;r.artFile=file;r.preset=preset;selectedId=r.id;previewBase=null;updateUI();requestRender();setMessage(labelFor(r)+' artwork loaded.');}
+function assignArtwork(r,img,name,file,preset=false){addToLibrary(img,name,file);renderLibrary();r.artImg=img;r.artName=name;r.artFile=file;r.preset=preset;selectedId=r.id;previewBase=null;updateUI();requestRender();setMessage(labelFor(r)+' artwork loaded.');}
 function loadImageFromFile(file){return new Promise((resolve,reject)=>{if(!file){reject(Error('No file selected.'));return;}
  if(!file.type.startsWith('image/')&&!/\.(heic|heif|jpg|jpeg|png|webp|gif|avif)$/i.test(file.name)){reject(Error('Choose a valid image.'));return;}
  if(file.size>35*1024*1024){reject(Error('Images over 35 MB must be resized first.'));return;}
@@ -416,8 +425,7 @@ function useFabric(img,name,file,demo=false){fabricImg=img;fabricName=name;fabri
  const thumb=$('fabricThumb');thumb.src=thumbURL(img);thumb.classList.remove('hide');$('fabricThumbCaption').classList.remove('hide');$('fabricEmpty').classList.add('hide');$('fabricLabel').textContent=name;
  $('rescanUpload').disabled=false;detectCanvases({preserve:false});}
 $('fabricFile').addEventListener('change',e=>loadImageFile(e.target.files[0]));const dz=$('fabricDrop');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');loadImageFile(e.dataTransfer.files[0]);});
-$('multiArtworkInput').addEventListener('change',async e=>{const files=Array.from(e.target.files);if(!files.length)return;let used=0;const targets=regions.filter(r=>!r.artImg).concat(regions.filter(r=>r.artImg));for(let i=0;i<Math.min(files.length,targets.length);i++){try{const img=await loadImageFromFile(files[i]);const r=targets[i];r.artImg=img;r.artName=files[i].name;r.artFile=files[i];r.preset=false;used++;}catch(err){$('uploadError').textContent=err.message;}}
- if(used){selectedId=targets[0]?.id;updateUI();requestRender();}if(files.length>regions.length)$('uploadError').textContent='Only '+regions.length+' canvas(es) available; remaining images were not placed. Add more canvases in Create if needed.';e.target.value='';});
+$('multiArtworkInput').addEventListener('change',async e=>{await addLibraryFiles(Array.from(e.target.files),true);e.target.value='';});
 $('editorArtFile').addEventListener('change',e=>{if(selected())loadImageFile(e.target.files[0],selectedId);e.target.value='';});
 $('replaceArtwork').addEventListener('click',()=>$('editorArtFile').click());
 $('rescanUpload').addEventListener('click',()=>detectCanvases({preserve:true}));$('rescanEditor').addEventListener('click',()=>detectCanvases({preserve:true}));
@@ -541,7 +549,9 @@ function canvasPosition(e){const box=view.getBoundingClientRect();return {x:(e.c
 function hitRegion(pos){if(segmentation?.labels){const sx=Math.floor(pos.x*segmentation.w),sy=Math.floor(pos.y*segmentation.h);if(sx>=0&&sy>=0&&sx<segmentation.w&&sy<segmentation.h){let label=segmentation.labels[sy*segmentation.w+sx],found=regions.find(r=>r.kind==='auto'&&r.segLabel===label);if(found)return found;}}
  for(let i=regions.length-1;i>=0;i--){let r=regions[i],b=r.bbox;if(pos.x>=b.x0&&pos.x<=b.x1&&pos.y>=b.y0&&pos.y<=b.y1)return r;}return null;}
 function nearestVertex(r,p){let best=-1,dist=Infinity;if(!r)return {i:-1,dist};r.mesh.forEach((q,i)=>{const d=Math.hypot((q.x-p.x)*p.cssw,(q.y-p.y)*p.cssh);if(d<dist){dist=d;best=i;}});return {i:best,dist};}
-view.addEventListener('pointerdown',e=>{if(previewMode!=='after')return;const p=canvasPosition(e);
+view.addEventListener('dragover',e=>{if(dragArtwork){e.preventDefault();e.dataTransfer.dropEffect='copy';}});
+view.addEventListener('drop',e=>{if(!dragArtwork)return;e.preventDefault();const target=hitRegion(canvasPosition(e));if(target)applyLibraryArtwork(dragArtwork,target);else $('libraryStatus').textContent='Drop the image on a canvas.';dragArtwork=null;});
+view.addEventListener('pointerdown',e=>{if(previewMode!=='after')return;const p=canvasPosition(e);if(pendingArtwork){const target=hitRegion(p);if(target)applyLibraryArtwork(pendingArtwork,target);else $('libraryStatus').textContent='Tap a canvas to place the selected image.';e.preventDefault();return;}
  if(sampleMode){const r=selected();if(!r||r.kind!=='auto'){setSampleMode(false);return;}const q={x:clamp(p.x,0,1),y:clamp(p.y,0,1)};r.samples.push(q);applyShadowSamples();setSampleMode(false);syncRegionControls();requestRender();setMessage('New shadow shade sampled for '+labelFor(r)+'. Check SHOW DETECTED COVERAGE to review.');e.preventDefault();return;}
  if(drawMode){drag={mode:'draw',start:p};drawRect={x0:clamp(p.x,0,1),y0:clamp(p.y,0,1),x1:clamp(p.x,0,1),y1:clamp(p.y,0,1)};view.setPointerCapture(e.pointerId);e.preventDefault();return;}
  let r=selected(),nearest=nearestVertex(r,p),target=hitRegion(p);
@@ -597,7 +607,8 @@ function fileFromDataUrl(url,name){if(typeof url!=='string'||!/^data:[^,]*;base6
 async function imageDataUrl(image,file){return dataUrl(file||await canvasBlob(imageCanvas(image,Math.max(image.width||0,image.height||0,3200))));}
 async function makeProject(number){
  const canvases=[];for(const r of regions){canvases.push({id:r.id,bbox:r.bbox,kind:r.kind,segLabel:r.segLabel,mesh:r.mesh,meshEdited:r.meshEdited,settings:r.settings,samples:r.samples,artName:r.artName,artwork:r.artImg?await imageDataUrl(r.artImg,r.artFile):null});}
- return {format:'risd-yearbook-project',version:1,photoNumber:number,source:{name:fabricName,data:await imageDataUrl(fabricImg,fabricFile)},globals:{threshold:globals.threshold,recovery:globals.recovery,feather:globals.feather},selectedId,canvases,segmentation:segmentation?{w:segmentation.w,h:segmentation.h,labels:toBase64(segmentation.baseLabels),alpha:toBase64(segmentation.baseAlpha)}:null};
+ const library=[];for(const item of artworkLibrary)library.push({name:item.name,data:await imageDataUrl(item.img,item.file)});
+ return {format:'risd-yearbook-project',version:1,library,photoNumber:number,source:{name:fabricName,data:await imageDataUrl(fabricImg,fabricFile)},globals:{threshold:globals.threshold,recovery:globals.recovery,feather:globals.feather},selectedId,canvases,segmentation:segmentation?{w:segmentation.w,h:segmentation.h,labels:toBase64(segmentation.baseLabels),alpha:toBase64(segmentation.baseAlpha)}:null};
 }
 async function openProject(file){
  if(!file)return;try{$('uploadError').textContent='Opening project…';const project=JSON.parse(await file.text());
@@ -609,6 +620,7 @@ async function openProject(file){
  Object.assign(globals,project.globals);for(const k of ['threshold','recovery','feather']){$(k).value=globals[k];$(k+'Val').textContent=k==='recovery'?globals[k]+'%':(globals[k]/100).toFixed(2);}
  useFabric(image,source.name,source,false);
  if(saved){const sourceCanvas=imageCanvas(image,800);if(sourceCanvas.width!==saved.w||sourceCanvas.height!==saved.h)throw Error('Mask does not match photo.');segmentation={w:saved.w,h:saved.h,baseLabels:labelData,baseAlpha:alphaData,labels:labelData,alpha:alphaData,src:sourceCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,saved.w,saved.h).data,threshold:globals.threshold,recovery:globals.recovery};}
+ artworkLibrary=[];pendingArtwork=null;for(const r of restored)if(r.artImg)addToLibrary(r.artImg,r.artName,r.artFile);if(Array.isArray(project.library)){for(const entry of project.library){if(artworkLibrary.some(x=>x.name===entry.name))continue;const f=fileFromDataUrl(entry.data,entry.name),img=await loadImageFromFile(f);addToLibrary(img,entry.name,f);}}renderLibrary();
  regions=restored;nextId=Math.max(0,...regions.map(r=>r.id))+1;selectedId=regions.some(r=>r.id===project.selectedId)?project.selectedId:regions[0].id;applyShadowSamples();$('photoNumber').value=project.photoNumber||'';previewBase=null;updateUI();requestRender();$('uploadError').textContent='';showStep(3);setMessage('Project opened. Continue editing.');
  }catch(err){console.error(err);$('uploadError').textContent='Could not open project: '+err.message;}finally{$('projectFile').value='';}}
 $('projectFile').addEventListener('change',e=>openProject(e.target.files[0]));
