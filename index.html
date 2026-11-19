@@ -91,12 +91,12 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div class="editor-actions"><button class="button" id="addCanvas">＋ DRAW CANVAS</button><button class="button" id="removeCanvas">REMOVE SELECTED</button><button class="button" id="rescanEditor">↻ RE-DETECT</button><button class="button" id="replaceArtwork">↥ REPLACE IMAGE</button></div>
   <input id="editorArtFile" type="file" accept="image/*" class="hide" aria-label="Replace selected canvas artwork">
   <hr class="panel-divider"><h3>02 / Green detection</h3>
-  <div class="control"><div class="control-head"><label for="threshold">Green sensitivity</label><output id="thresholdVal"></output></div><input type="range" id="threshold" min="5" max="65" value="21" step="1"></div>
+  <div class="control"><div class="control-head"><label for="threshold">Green detection threshold</label><output id="thresholdVal"></output></div><input type="range" id="threshold" min="5" max="65" value="21" step="1"></div>
   <div class="control"><div class="control-head"><label for="recovery">Recover dark folds</label><output id="recoveryVal"></output></div><input type="range" id="recovery" min="0" max="100" value="75" step="1"></div>
   <div class="editor-buttons" style="margin-bottom:10px"><button class="button" id="sampleShadow" type="button">◉ PICK SHADOW COLOR</button><button class="button" id="clearShadowSamples" type="button">CLEAR SAMPLES</button></div>
   <p class="control-note" id="sampleStatus">Optional: select a canvas, then click a missed dark fold once to teach the detector that shade. No painting or brush strokes.</p>
   <label class="toggleline"><input id="showCoverage" type="checkbox">Show detected coverage overlay</label>
-  <div class="control"><div class="control-head"><label for="feather">Edge softness</label><output id="featherVal"></output></div><input type="range" id="feather" min="0" max="30" value="10" step="1"></div>
+  <div class="control"><div class="control-head"><label for="feather">Mask edge feather</label><output id="featherVal"></output></div><input type="range" id="feather" min="0" max="30" value="10" step="1"></div>
   <hr class="panel-divider"><h3>03 / Selected canvas — Fold & light</h3>
   <div class="control"><div class="control-head"><label for="warp">Fold displacement</label><output id="warpVal"></output></div><input type="range" id="warp" min="0" max="90" value="35" step="1"></div>
   <div class="control"><div class="control-head"><label for="lighting">Fabric lighting</label><output id="lightingVal"></output></div><input type="range" id="lighting" min="0" max="140" value="85" step="1"></div>
@@ -407,7 +407,14 @@ function renderAt(w,h){const base=makeCanvas(w,h),bc=base.getContext('2d',{willR
      // here made recovered shadows disappear even when already inside the detected canvas.
      let mask;
      if(region.kind==='auto'&&labels){
-       mask=smoothMask[i+3]/255;
+       // Fold Lab's color-key softness refines bright edges at output resolution.
+       // Dark folds retain the region mask so shadow recovery is not erased.
+       const spatialMask=smoothMask[i+3]/255;
+       if(spatialMask<=.001)continue;
+       const score=greenScore(r,g,bcol);
+       const chroma=smoothstep(threshold-feather*.5,threshold+feather*.5,score);
+       const darkRecovery=globals.recovery/100*(1-smoothstep(45,120,Math.max(r,g,bcol)));
+       mask=spatialMask*Math.max(chroma,darkRecovery);
      }else{
        const score=greenScore(r,g,bcol);
        mask=smoothstep(threshold-feather*.5,threshold+feather*.5,score);
