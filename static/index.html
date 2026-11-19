@@ -79,6 +79,36 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  #step3 .staff-settings{position:static;align-self:start;max-height:100%;width:100%;overflow:auto}
  #step3 #createActions{flex:none;margin-top:8px;justify-content:flex-end}
 }
+
+/* Create: one focused canvas with controls grouped beside it. */
+#step3 .simple-editor{display:grid;grid-template-columns:minmax(245px,300px) minmax(0,1fr);grid-template-areas:'sidebar preview';gap:20px;max-width:none;margin:0;width:100%}
+#step3 .editor-sidebar{grid-area:sidebar;min-width:0;display:flex;flex-direction:column;gap:18px}
+#step3 .selection-group{grid-area:auto}
+#step3 .selection-group .canvas-selection{display:flex;gap:6px;margin-top:8px}
+#step3 .student-controls{grid-area:auto;width:100%;display:flex;align-items:end;gap:10px;margin:0}
+#step3 .student-controls .control{min-width:0}
+#step3 .student-controls .button{flex:none}
+#step3 #replaceAssets{align-self:flex-start}
+#step3 .staff-settings{grid-area:auto;position:static;width:100%;max-height:none;margin:0;overflow:visible}
+#step3 .editor-area{grid-area:preview;min-width:0}
+#step3 .canvasbar{margin-bottom:8px}
+#step3 .canvas-wrap{position:relative;min-width:0}
+#step3 #createActions{justify-content:flex-end}
+@media(min-width:901px) and (min-height:650px){
+ #step3 .simple-editor{flex:1;min-height:0;grid-template-columns:minmax(245px,300px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);align-items:stretch}
+ #step3 .editor-sidebar{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px}
+ #step3 .editor-area{min-height:0;display:flex;flex-direction:column}
+ #step3 .canvas-wrap{flex:1;min-height:0;height:0;overflow:hidden}
+ #step3 #view{position:absolute;inset:8px;margin:auto;display:block;width:auto;height:auto;max-width:calc(100% - 16px);max-height:calc(100% - 16px)}
+ #step3 .canvas-foot{flex:none}
+}
+@media(max-width:900px),(max-height:649px){
+ #step3 .simple-editor{display:flex;flex-direction:column}
+ #step3 .editor-sidebar{order:2;width:100%}
+ #step3 .editor-area{order:1;width:100%}
+ #step3 .canvas-wrap{min-height:270px}
+ #step3 #view{position:static;max-width:100%;max-height:60vh}
+}
 </style>
 </head>
 <body>
@@ -108,15 +138,12 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
  <div class="flowactions"><button class="button primary large" id="toCreate" disabled>CONTINUE TO CREATE ↗</button></div>
 </section>
 <section class="page" id="step3" hidden aria-labelledby="createTitle">
- <div class="sectionhead"><div><div class="kicker" id="createTitle">02 / CREATE</div><p class="lead">Drag the points and adjust the artwork scale.</p></div><button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button></div>
+ <div class="sectionhead"><div><div class="kicker" id="createTitle">02 / CREATE</div><p class="lead">Drag the points and adjust the artwork scale.</p></div></div>
  <div class="editor-layout simple-editor">
+  <div class="editor-sidebar">
   <div id="selectionGroup" class="selection-group"><span class="small">SELECT A CANVAS</span><div class="canvas-selection" id="canvasSelection"></div></div>
-  <div class="editor-area">
-   <div class="canvasbar"><div><h3>Your artwork <span class="micro" id="sizeInfo">—</span></h3></div><div class="viewmode" role="group" aria-label="Preview mode"><button id="viewAfter" class="active" aria-pressed="true">AFTER</button><button id="viewBefore" aria-pressed="false">BEFORE</button></div></div>
-   <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Artwork preview. Drag the grid points to reshape the artwork."></canvas></div>
-   <div class="canvas-foot"><small>Drag the points to adjust your artwork.</small><span class="status" id="message" aria-live="polite">Ready</span></div>
-  </div>
   <div class="student-controls"><div class="control"><div class="control-head"><label for="zoom">Artwork scale</label><output id="zoomVal"></output></div><input type="range" id="zoom" min="55" max="240" value="100" step="1"></div><button class="button" id="reset">RESET</button></div>
+   <button class="button tiny" id="replaceAssets">↺ CHANGE IMAGES</button>
   <details id="staffSettings" class="staff-settings"><summary>STAFF SETTINGS</summary><aside class="editor-aside" aria-label="Staff advanced settings"><h3>YOUR CANVASES <span class="pill-info" id="editorCanvasCount">0 FOUND</span></h3><p class="editor-quick-note" id="selectedCanvasNote"></p>
   <div class="editor-actions"><button class="button" id="addCanvas">＋ DRAW CANVAS</button><button class="button" id="removeCanvas">REMOVE SELECTED</button><button class="button" id="rescanEditor">↻ RE-DETECT</button><button class="button" id="replaceArtwork">↥ REPLACE IMAGE</button></div>
   <input id="editorArtFile" type="file" accept="image/*" class="hide" aria-label="Replace selected canvas artwork">
@@ -137,6 +164,12 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div class="editor-buttons"><button class="button" id="autoFit">FIT SELECTED</button><button class="button" id="defaultSettings">RESET STAFF SETTINGS</button></div>
   <button class="button" id="export" style="margin-top:10px">EXPORT PNG</button>
   </aside></details>
+  </div>
+  <div class="editor-area">
+   <div class="canvasbar"><div><h3>Your artwork <span class="micro" id="sizeInfo">—</span></h3></div><div class="viewmode" role="group" aria-label="Preview mode"><button id="viewAfter" class="active" aria-pressed="true">AFTER</button><button id="viewBefore" aria-pressed="false">BEFORE</button></div></div>
+   <div class="canvas-wrap"><canvas id="view" width="1000" height="700" aria-label="Artwork preview. Drag the grid points to reshape the artwork."></canvas></div>
+   <div class="canvas-foot"><small>Drag the points to adjust your artwork.</small><span class="status" id="message" aria-live="polite">Ready</span></div>
+  </div>
  </div>
  <div class="flowactions" id="createActions"><button class="button" data-goto="2">← BACK</button><button class="button primary large" id="toSubmit">CONTINUE TO FINALIZE ↗</button></div>
 </section>
