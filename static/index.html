@@ -58,6 +58,27 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 
 /* Put staff tools to the left while keeping the artwork prominent. */
 .simple-editor{display:grid;grid-template-columns:minmax(190px,240px) minmax(0,1fr);grid-template-areas:'staff select' 'staff preview' 'staff controls';align-items:start;column-gap:24px;row-gap:14px;max-width:1400px}.selection-group{grid-area:select}.simple-editor .editor-area{grid-area:preview}.simple-editor .student-controls{grid-area:controls}.staff-settings{grid-area:staff;margin:0;border:1px solid var(--line);position:sticky;top:100px;max-height:calc(100vh - 120px);overflow:auto}.staff-settings summary{padding:16px}.staff-settings .editor-aside{border:0;border-top:1px solid var(--line);padding:16px}.sectionhead .kicker{margin-bottom:10px}.page{padding-top:28px}@media(max-width:730px){.simple-editor{display:flex;flex-direction:column}.simple-editor .selection-group{order:0}.simple-editor .editor-area{order:1}.simple-editor .student-controls{order:2}.simple-editor .staff-settings{order:3;position:static;max-height:none;margin-top:16px}.sectionhead .button{margin-top:12px}}
+
+/* Keep the desktop editing workspace within the viewport. */
+@media(min-width:901px) and (min-height:650px){
+ body:has(#step3:not([hidden])){overflow:hidden}
+ body:has(#step3:not([hidden])) .footer{display:none}
+ #step3:not([hidden]){height:calc(100dvh - 142px);min-height:0;display:flex;flex-direction:column;padding:12px clamp(18px,3.4vw,52px) 12px}
+ #step3 .sectionhead{flex:none;margin-bottom:8px;align-items:center}
+ #step3 .sectionhead .kicker{margin-bottom:2px}
+ #step3 .sectionhead .lead{font-size:15px}
+ #step3 .simple-editor{flex:1;min-height:0;width:100%;grid-template-columns:minmax(300px,340px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;row-gap:6px;align-items:stretch}
+ #step3 .selection-group .canvas-selection{margin:3px 0 0}
+ #step3 .canvas-pick{min-height:34px}
+ #step3 .editor-area{min-height:0;display:flex;flex-direction:column}
+ #step3 .canvasbar{flex:none;margin-bottom:5px}
+ #step3 .canvas-wrap{flex:1;min-height:0;padding:8px}
+ #step3 #view{max-height:100%;max-width:100%}
+ #step3 .canvas-foot{flex:none;padding:4px 0 0}
+ #step3 .student-controls{min-height:44px}
+ #step3 .staff-settings{position:static;align-self:start;max-height:100%;width:100%;overflow:auto}
+ #step3 #createActions{flex:none;margin-top:8px;justify-content:flex-end}
+}
 </style>
 </head>
 <body>
@@ -75,7 +96,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 <main id="main">
 <section class="page" id="step2" aria-labelledby="uploadTitle">
  <div class="sectionhead"><div><div class="kicker" id="uploadTitle">01 / UPLOAD</div><p class="lead">Upload a photo and add artwork to each green area.</p></div></div>
- <div class="upload-grid multi-upload">
+ <div class="flowactions"><label class="button upload-trigger" for="projectFile">OPEN SAVED PROJECT</label><input id="projectFile" type="file" accept=".json,application/json" class="hide" aria-label="Open saved project JSON"></div><div class="upload-grid multi-upload">
   <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp,.nef" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>NEF / JPG / PNG / WEBP</span></div></div>
   <div class="region-scan"><div class="scan-head"><strong>B / Detect canvases</strong><span class="canvas-count" id="detectedCount" aria-live="polite">UPLOAD TO SCAN</span></div><div class="scan-preview"><canvas id="scanCanvas" width="640" height="420" aria-label="Detected green panels highlighted with their canvas numbers"></canvas></div><div class="small" id="scanMessage">Shadow-aware green detection. Deep folds are recovered automatically; separate regions stay independent.</div><div class="editor-buttons"><button class="button" id="rescanUpload" disabled>↻ SCAN AGAIN</button></div></div>
  </div>
@@ -126,10 +147,10 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <div>
    <form id="submissionForm" novalidate>
     <div class="field"><label for="photoNumber">Which photo number is this? <span class="required">*</span></label><input id="photoNumber" inputmode="numeric" pattern="[1-9][0-9]*" placeholder="e.g. 1" required></div>
-    <div class="notice"><strong>LOCAL DOWNLOAD</strong><span>Your finished TIFF will download to this device.</span></div>
+    <div class="notice"><strong>LOCAL DOWNLOAD</strong><span>Your TIFF and editable project JSON download as separate files.</span></div>
     <div class="validation" id="submitError" role="alert"></div>
-    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE TIFF</button><button type="button" class="button" id="downloadPNG">DOWNLOAD PNG</button></div>
-    <p class="small" id="packageStatus">TIFF is 8-bit per channel. Images are processed locally in your browser.</p>
+    <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE TIFF + PROJECT</button><button type="button" class="button" id="downloadProject">DOWNLOAD PROJECT JSON</button><button type="button" class="button" id="downloadPNG">DOWNLOAD PNG</button></div>
+    <p class="small" id="packageStatus">Open the saved project JSON here to continue editing. TIFF is 8-bit per channel.</p>
    </form>
   </div>
  </div>
@@ -532,7 +553,31 @@ function encodeTiff(canvas){
  for(let src=0,dst=pixel;src<rgba.length;src+=4){bytes[dst++]=rgba[src];bytes[dst++]=rgba[src+1];bytes[dst++]=rgba[src+2];}
  return new Blob([buffer],{type:'image/tiff'});
 }
-$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;$('packageStatus').textContent='Rendering and preparing TIFF…';try{await yieldFrame();const {w,h}=renderResolution();const blob=encodeTiff(renderAt(w,h));const name=number+'_'+fabricName.replace(/\.[^.]+$/,'')+'.tif';saveBlob(blob,name);$('packageStatus').textContent='Downloaded '+name+' to this device.';}catch(err){$('submitError').textContent='Export failed: '+err.message;$('packageStatus').textContent='Export failed.';}finally{btn.disabled=false;}});
+// The project is self-contained: source image, artwork, per-canvas edits and masks.
+function dataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read an image'));reader.readAsDataURL(blob);});}
+function toBase64(bytes){let chunks=[];for(let i=0;i<bytes.length;i+=32768)chunks.push(String.fromCharCode(...bytes.subarray(i,i+32768)));return btoa(chunks.join(''));}
+function fromBase64(value){const raw=atob(value),out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
+function fileFromDataUrl(url,name){if(typeof url!=='string'||!/^data:[^,]*;base64,/i.test(url))throw Error('Invalid image data');const comma=url.indexOf(','),type=url.slice(5,comma).split(';')[0]||'application/octet-stream';return new File([fromBase64(url.slice(comma+1))],name,{type});}
+async function imageDataUrl(image,file){return dataUrl(file||await canvasBlob(imageCanvas(image,Math.max(image.width||0,image.height||0,3200))));}
+async function makeProject(number){
+ const canvases=[];for(const r of regions){canvases.push({id:r.id,bbox:r.bbox,kind:r.kind,segLabel:r.segLabel,mesh:r.mesh,meshEdited:r.meshEdited,settings:r.settings,samples:r.samples,artName:r.artName,artwork:r.artImg?await imageDataUrl(r.artImg,r.artFile):null});}
+ return {format:'risd-yearbook-project',version:1,photoNumber:number,source:{name:fabricName,data:await imageDataUrl(fabricImg,fabricFile)},globals:{threshold:globals.threshold,recovery:globals.recovery,feather:globals.feather},selectedId,canvases,segmentation:segmentation?{w:segmentation.w,h:segmentation.h,labels:toBase64(segmentation.baseLabels),alpha:toBase64(segmentation.baseAlpha)}:null};
+}
+async function openProject(file){
+ if(!file)return;try{$('uploadError').textContent='Opening project…';const project=JSON.parse(await file.text());
+ if(project.format!=='risd-yearbook-project'||project.version!==1||!project.source||!Array.isArray(project.canvases)||!project.canvases.length||project.canvases.length>MAX_CANVASES)throw Error('This is not a supported project file.');
+ for(const r of project.canvases){if(!Array.isArray(r.mesh)||r.mesh.length!==N*N||!r.bbox||!r.settings||!['auto','manual'].includes(r.kind)||r.mesh.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)))throw Error('Invalid canvas data.');}
+ const source=fileFromDataUrl(project.source.data,project.source.name);const image=/\.nef$/i.test(source.name)?await decodeNef(source):await loadImageFromFile(source);
+ const restored=[];for(const r of project.canvases){const af=r.artwork?fileFromDataUrl(r.artwork,r.artName||'artwork.png'):null;restored.push({...r,artFile:af,artImg:af?await loadImageFromFile(af):null,preset:false});}
+ const saved=project.segmentation;let labelData=null,alphaData=null;if(saved){if(!Number.isInteger(saved.w)||!Number.isInteger(saved.h)||saved.w<1||saved.h<1||saved.w*saved.h>800*800)throw Error('Invalid mask size.');labelData=fromBase64(saved.labels);alphaData=fromBase64(saved.alpha);if(labelData.length!==saved.w*saved.h||alphaData.length!==labelData.length)throw Error('Invalid mask data.');}
+ Object.assign(globals,project.globals);for(const k of ['threshold','recovery','feather']){$(k).value=globals[k];$(k+'Val').textContent=k==='recovery'?globals[k]+'%':(globals[k]/100).toFixed(2);}
+ useFabric(image,source.name,source,false);
+ if(saved){const sourceCanvas=imageCanvas(image,800);if(sourceCanvas.width!==saved.w||sourceCanvas.height!==saved.h)throw Error('Mask does not match photo.');segmentation={w:saved.w,h:saved.h,baseLabels:labelData,baseAlpha:alphaData,labels:labelData,alpha:alphaData,src:sourceCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,saved.w,saved.h).data,threshold:globals.threshold,recovery:globals.recovery};}
+ regions=restored;nextId=Math.max(0,...regions.map(r=>r.id))+1;selectedId=regions.some(r=>r.id===project.selectedId)?project.selectedId:regions[0].id;applyShadowSamples();$('photoNumber').value=project.photoNumber||'';previewBase=null;updateUI();requestRender();$('uploadError').textContent='';showStep(3);setMessage('Project opened. Continue editing.');
+ }catch(err){console.error(err);$('uploadError').textContent='Could not open project: '+err.message;}finally{$('projectFile').value='';}}
+$('projectFile').addEventListener('change',e=>openProject(e.target.files[0]));
+$('downloadProject').addEventListener('click',async()=>{const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}const button=$('downloadProject');button.disabled=true;try{const project=await makeProject(number),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Editable project downloaded.';$('submitError').textContent='';}catch(err){$('submitError').textContent='Could not save project: '+err.message;}finally{button.disabled=false;}});
+$('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const number=$('photoNumber').value.trim();if(!/^[1-9][0-9]*$/.test(number)){$('submitError').textContent='Please enter a positive whole number.';return;}if(!fabricImg||!regions.some(r=>r.artImg)){$('submitError').textContent='Upload a photograph and at least one artwork.';return;}$('submitError').textContent='';const btn=$('downloadZip');btn.disabled=true;$('packageStatus').textContent='Preparing TIFF and editable project…';try{await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const project=await makeProject(number);saveBlob(tiff,base+'.tif');saveBlob(new Blob([JSON.stringify(project)],{type:'application/json'}),base+'_project.json');$('packageStatus').textContent='Saved TIFF and editable JSON separately. If your browser blocks a download, use DOWNLOAD PROJECT JSON.';}catch(err){$('submitError').textContent='Export failed: '+err.message;$('packageStatus').textContent='Export failed.';}finally{btn.disabled=false;}});
 $('scanMessage').textContent='Green areas are detected automatically.';
 renderCards();renderSelectors();syncRegionControls();drawScan();showStep(2);
 })();
