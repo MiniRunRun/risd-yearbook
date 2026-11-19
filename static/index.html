@@ -153,7 +153,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
   <input id="editorArtFile" type="file" accept="image/*" class="hide" aria-label="Replace selected canvas artwork">
   <hr class="panel-divider"><h3>02 / Green detection</h3>
   <div class="control"><div class="control-head"><label for="threshold">Green detection threshold</label><output id="thresholdVal"></output></div><input type="range" id="threshold" min="5" max="65" value="21" step="1"></div>
-  <div class="control"><div class="control-head"><label for="recovery">Recover dark folds</label><output id="recoveryVal"></output></div><input type="range" id="recovery" min="0" max="100" value="75" step="1"></div>
+  <div class="control"><div class="control-head"><label for="recovery">Recover dark folds</label><output id="recoveryVal"></output></div><input type="range" id="recovery" min="0" max="100" value="10" step="1"></div>
   <div class="editor-buttons" style="margin-bottom:10px"><button class="button" id="sampleShadow" type="button">◉ PICK SHADOW COLOR</button><button class="button" id="clearShadowSamples" type="button">CLEAR SAMPLES</button></div>
   <p class="control-note" id="sampleStatus">Optional: select a canvas, then click a missed dark fold once to teach the detector that shade. No painting or brush strokes.</p>
   <label class="toggleline"><input id="showCoverage" type="checkbox">Show detected coverage overlay</label>
@@ -204,7 +204,7 @@ const smoothstep=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1
 const makeCanvas=(w,h)=>{let c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 const greenScore=(r,g,b)=>(g-Math.max(r,b))/Math.max(35,g);
 const regionDefaults=()=>({warp:35,lighting:100,texture:100,zoom:100});
-const globals={threshold:21,recovery:75,feather:10,showMesh:true,showCoverage:false};
+const globals={threshold:21,recovery:10,feather:10,showMesh:true,showCoverage:false};
 let fabricImg=null,fabricName='',fabricFile=null,isDemoFabric=false;
 let regions=[],selectedId=null,nextId=1,segmentation=null,previewBase=null,renderTimer=null,detectTimer=null,detectGeneration=0;
 let currentStep=2,previewMode='after',drag=null,drawMode=false,drawRect=null,sampleMode=false,coverageCanvas=null;
