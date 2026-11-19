@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.tif
+*.tiff
+*.raw
+*.cr2
+*.cr3
