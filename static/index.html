@@ -112,7 +112,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-.button[hidden]{display:none!important}
+.button[hidden],#rawDecodeInfo[hidden]{display:none!important}
 
 .art-library{border:1px solid var(--line);padding:12px}.art-library-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.art-library p{margin:8px 0}.art-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:180px;overflow:auto}.art-library-item{min-width:0;padding:3px;background:transparent;border:1px solid var(--line);color:var(--ink);text-align:left}.art-library-item.selected{outline:3px solid var(--ink);outline-offset:1px}.art-library-item img{width:100%;height:55px;object-fit:cover;display:block}.art-library-item span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;margin-top:3px}#libraryStatus:empty{display:none}.canvas-wrap:has(canvas:hover){border-color:var(--ink)}
 
@@ -135,7 +135,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
 <section class="page" id="step2" aria-labelledby="uploadTitle">
  <div class="sectionhead"><div><div class="kicker" id="uploadTitle">01 / UPLOAD</div><p class="lead">Upload a photo and add artwork to each green area.</p></div></div>
  <div class="flowactions"><label class="button upload-trigger" for="projectFile">OPEN SAVED PROJECT</label><input id="projectFile" type="file" accept=".json,application/json" class="hide" aria-label="Open saved project JSON"></div><div class="upload-grid multi-upload">
-  <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp,.nef" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>NEF / JPG / PNG / WEBP</span></div></div>
+  <div class="upload-card"><div class="cardtop"><strong>A / Green-screen photograph</strong><span>REQUIRED</span></div><label class="dropzone" id="fabricDrop"><div class="empty" id="fabricEmpty"><span class="plus">＋</span><strong>Drop your photo here</strong><p>One photo containing one or multiple green panels</p></div><img id="fabricThumb" class="hide" alt="Photograph preview"><span id="fabricThumbCaption" class="overlay-label hide">REPLACE PHOTO ↗</span><input type="file" id="fabricFile" accept="image/jpeg,image/png,image/webp,.nef" aria-label="Upload photograph with green screen areas"></label><div class="upload-footer"><span class="filename" id="fabricLabel">No photograph selected</span><span>NEF / JPG / PNG / WEBP</span></div><p id="rawDecodeInfo" class="small" role="status" style="margin:0 20px 16px" hidden></p></div>
   <div class="region-scan"><div class="scan-head"><strong>B / Detect canvases</strong><span class="canvas-count" id="detectedCount" aria-live="polite">UPLOAD TO SCAN</span></div><div class="scan-preview"><canvas id="scanCanvas" width="640" height="420" aria-label="Detected green panels highlighted with their canvas numbers"></canvas></div><div class="small" id="scanMessage">Shadow-aware green detection. Deep folds are recovered automatically; separate regions stay independent.</div><div class="editor-buttons"><button class="button" id="rescanUpload" disabled>↻ SCAN AGAIN</button></div></div>
  </div>
  <div class="artwork-board"><div class="artwork-board-top"><label class="button upload-trigger" for="multiArtworkInput">SELECT YOUR PHOTOS</label><input id="multiArtworkInput" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Select your photos"></div>
@@ -412,17 +412,24 @@ function loadImageFromFile(file){return new Promise((resolve,reject)=>{if(!file)
  if(!file.type.startsWith('image/')&&!/\.(heic|heif|jpg|jpeg|png|webp|gif|avif)$/i.test(file.name)){reject(Error('Choose a valid image.'));return;}
  if(file.size>35*1024*1024){reject(Error('Images over 35 MB must be resized first.'));return;}
  const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(url);resolve(im);};im.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Cannot open '+file.name+'. Convert HEIC to JPG if necessary.'));};im.src=url;});}
-async function decodeNef(file){
+async function decodeNef(file,{preferCamera=true}={}){
  const prefix=/\/static(?:\/index\.html|\/)?$/.test(location.pathname)?'../vendor/libraw/index.js':'./vendor/libraw/index.js';
  const {default:LibRaw}=await import(prefix);const raw=new LibRaw();
  try{
   await raw.open(new Uint8Array(await file.arrayBuffer()),{useCameraWb:true,outputBps:8,outputColor:1});
+  // Prefer a near-full-resolution camera-rendered JPEG, when present. It carries
+  // the camera's own tonal rendering and orientation, unlike a generic RAW render.
+  let meta=null;try{if(preferCamera){meta=await raw.metadata();const thumb=await raw.thumbnailData();if(thumb?.format==='jpeg'&&thumb.data?.length){
+   const jpg=new File([thumb.data],'camera-preview.jpg',{type:'image/jpeg'}),img=await loadImageFromFile(jpg);
+   const dims=[img.naturalWidth,img.naturalHeight].sort((a,b)=>a-b),rawDims=[meta?.width||0,meta?.height||0].sort((a,b)=>a-b);
+   if(rawDims[0]>0&&rawDims[1]>0&&dims[0]>=rawDims[0]*.85&&dims[1]>=rawDims[1]*.85){img.rawSourceDescription='Using the camera-rendered JPEG preview embedded in your NEF (8-bit).';img.rawSourceMethod='camera-preview';return img;}
+  }}}catch(err){console.warn('Camera preview unavailable; decoding RAW.',err);}
   const image=await raw.imageData();
   if(!image||image.bits!==8||image.colors<3||!image.width||!image.height)throw Error('Unsupported image data');
   const {width:w,height:h,colors,data}=image;if(w*h>100000000)throw Error('Image is too large to process');
   const canvas=makeCanvas(w,h),context=canvas.getContext('2d'),pixels=context.createImageData(w,h);
   for(let i=0,j=0;i<w*h;i++,j+=colors){const k=i*4;pixels.data[k]=data[j];pixels.data[k+1]=data[j+1];pixels.data[k+2]=data[j+2];pixels.data[k+3]=255;}
-  context.putImageData(pixels,0,0);return canvas;
+  context.putImageData(pixels,0,0);canvas.rawSourceDescription=preferCamera?'Camera preview unavailable; using a standard 8-bit RAW render.':'Using the RAW rendering saved with this project (8-bit).';canvas.rawSourceMethod='raw-render';return canvas;
  }finally{raw.dispose();}
 }
 let photoLoadVersion=0;
@@ -434,6 +441,7 @@ async function loadImageFile(file,regionId=null){if(!file)return;const version=r
 
 function useFabric(img,name,file,demo=false){clearHistory();fabricImg=img;fabricName=name;fabricFile=file;isDemoFabric=demo;regions=[];selectedId=null;segmentation=null;
  const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height,s=Math.min(1,1100/Math.max(w,h));view.width=Math.max(1,Math.round(w*s));view.height=Math.max(1,Math.round(h*s));$('sizeInfo').textContent=w+' × '+h;
+ const info=$('rawDecodeInfo');info.hidden=!img.rawSourceDescription;info.textContent=img.rawSourceDescription||'';
  const thumb=$('fabricThumb');thumb.src=thumbURL(img);thumb.classList.remove('hide');$('fabricThumbCaption').classList.remove('hide');$('fabricEmpty').classList.add('hide');$('fabricLabel').textContent=name;
  $('rescanUpload').disabled=false;detectCanvases({preserve:false});for(let i=0;i<Math.min(regions.length,artworkLibrary.length);i++){const r=regions[i],item=artworkLibrary[i];r.artImg=item.img;r.artName=item.name;r.artFile=item.file;}updateUI();requestRender();}
 $('fabricFile').addEventListener('change',e=>loadImageFile(e.target.files[0]));const dz=$('fabricDrop');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');loadImageFile(e.dataTransfer.files[0]);});
@@ -618,13 +626,13 @@ async function imageDataUrl(image,file){return dataUrl(file||await canvasBlob(im
 async function makeProject(number){
  const canvases=[];for(const r of regions){canvases.push({id:r.id,bbox:r.bbox,kind:r.kind,segLabel:r.segLabel,mesh:r.mesh,meshEdited:r.meshEdited,settings:r.settings,samples:r.samples,artName:r.artName,artwork:r.artImg?await imageDataUrl(r.artImg,r.artFile):null});}
  const library=[];for(const item of artworkLibrary)library.push({name:item.name,data:await imageDataUrl(item.img,item.file)});
- return {format:'risd-yearbook-project',version:1,library,photoNumber:number,source:{name:fabricName,data:await imageDataUrl(fabricImg,fabricFile)},globals:{threshold:globals.threshold,recovery:globals.recovery,feather:globals.feather},selectedId,canvases,segmentation:segmentation?{w:segmentation.w,h:segmentation.h,labels:toBase64(segmentation.baseLabels),alpha:toBase64(segmentation.baseAlpha)}:null};
+ return {format:'risd-yearbook-project',version:1,library,photoNumber:number,source:{name:fabricName,data:await imageDataUrl(fabricImg,fabricFile),render:fabricImg.rawSourceMethod||null},globals:{threshold:globals.threshold,recovery:globals.recovery,feather:globals.feather},selectedId,canvases,segmentation:segmentation?{w:segmentation.w,h:segmentation.h,labels:toBase64(segmentation.baseLabels),alpha:toBase64(segmentation.baseAlpha)}:null};
 }
 async function openProject(file){
  if(!file)return;try{$('uploadError').textContent='Opening project…';const project=JSON.parse(await file.text());
  if(project.format!=='risd-yearbook-project'||project.version!==1||!project.source||!Array.isArray(project.canvases)||!project.canvases.length||project.canvases.length>MAX_CANVASES)throw Error('This is not a supported project file.');
  for(const r of project.canvases){if(!Array.isArray(r.mesh)||r.mesh.length!==N*N||!r.bbox||!r.settings||!['auto','manual'].includes(r.kind)||r.mesh.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)))throw Error('Invalid canvas data.');}
- const source=fileFromDataUrl(project.source.data,project.source.name);const image=/\.nef$/i.test(source.name)?await decodeNef(source):await loadImageFromFile(source);
+ const source=fileFromDataUrl(project.source.data,project.source.name);const image=/\.nef$/i.test(source.name)?await decodeNef(source,{preferCamera:project.source.render==='camera-preview'}):await loadImageFromFile(source);
  const restored=[];for(const r of project.canvases){const af=r.artwork?fileFromDataUrl(r.artwork,r.artName||'artwork.png'):null;restored.push({...r,artFile:af,artImg:af?await loadImageFromFile(af):null,preset:false});}
  const saved=project.segmentation;let labelData=null,alphaData=null;if(saved){if(!Number.isInteger(saved.w)||!Number.isInteger(saved.h)||saved.w<1||saved.h<1||saved.w*saved.h>800*800)throw Error('Invalid mask size.');labelData=fromBase64(saved.labels);alphaData=fromBase64(saved.alpha);if(labelData.length!==saved.w*saved.h||alphaData.length!==labelData.length)throw Error('Invalid mask data.');}
  Object.assign(globals,project.globals);for(const k of ['threshold','recovery','feather']){$(k).value=globals[k];$(k+'Val').textContent=k==='recovery'?globals[k]+'%':(globals[k]/100).toFixed(2);}
