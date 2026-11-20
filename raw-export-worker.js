@@ -6,8 +6,10 @@ const smooth=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1);re
 function blurBox(src,w,h,r){const tmp=new Float32Array(w*h),out=new Float32Array(w*h);r=Math.max(1,r|0);for(let y=0;y<h;y++){let n=0;for(let x=0;x<=r&&x<w;x++)n+=src[y*w+x];for(let x=0;x<w;x++){if(x){if(x-r-1>=0)n-=src[y*w+x-r-1];if(x+r<w)n+=src[y*w+x+r]}tmp[y*w+x]=n/(Math.min(w-1,x+r)-Math.max(0,x-r)+1)}}for(let x=0;x<w;x++){let n=0;for(let y=0;y<=r&&y<h;y++)n+=tmp[y*w+x];for(let y=0;y<h;y++){if(y){if(y-r-1>=0)n-=tmp[(y-r-1)*w+x];if(y+r<h)n+=tmp[(y+r)*w+x]}out[y*w+x]=n/(Math.min(h-1,y+r)-Math.max(0,y-r)+1)}}return out}
 function bilinear(a,w,h,x,y){x=clamp(x,0,w-1);y=clamp(y,0,h-1);const ix=Math.floor(x),iy=Math.floor(y),jx=Math.min(ix+1,w-1),jy=Math.min(iy+1,h-1),dx=x-ix,dy=y-iy;return (a[iy*w+ix]*(1-dx)+a[iy*w+jx]*dx)*(1-dy)+(a[jy*w+ix]*(1-dx)+a[jy*w+jx]*dx)*dy}
 const score=(r,g,b)=>(g-Math.max(r,b))/Math.max(35,g);
+function photoCurveLut(settings,max){const lut=new Uint16Array(max+1),exposure=Number(settings.exposure)||0,shadows=(Number(settings.shadows)||0)/100,highlights=(Number(settings.highlights)||0)/100,contrast=(Number(settings.contrast)||0)/100;for(let i=0;i<=max;i++){let x=i/max;x=Math.min(1,x*Math.pow(2,exposure));x+=shadows*x*(1-x)*(1-x)*.8+highlights*x*x*(1-x)*.8;x=(x-.5)*(1+contrast*.65)+.5;lut[i]=Math.round(Math.max(0,Math.min(1,x))*max);}return lut;}
 function composite(job){
  const {w,h,raw,regions,seg,globals}=job;if(!(raw instanceof Uint16Array)||raw.length!==w*h*3)throw Error('Expected full-resolution 16-bit RGB data.');
+ if(job.photoAdjust&&Object.values(job.photoAdjust).some(v=>Number(v))){const lut=photoCurveLut(job.photoAdjust,65535);for(let i=0;i<raw.length;i++)raw[i]=lut[raw[i]];}
  // Sample illumination at modest resolution; the source and final pixel buffer remain full size.
  const lw=Math.max(1,Math.round(w*Math.min(1,1100/Math.max(w,h)))),lh=Math.max(1,Math.round(h*Math.min(1,1100/Math.max(w,h)))),green=new Float32Array(lw*lh);let sum=0,count=0;
  for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){let sx=Math.min(w-1,Math.floor((x+.5)*w/lw)),sy=Math.min(h-1,Math.floor((y+.5)*h/lh)),k=(sy*w+sx)*3;green[y*lw+x]=raw[k+1]/257;}
