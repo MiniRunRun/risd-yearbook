@@ -191,7 +191,7 @@ body{font-size:16px}.topbar{background:#afe2ed;backdrop-filter:none}.steps{grid-
     <div class="field"><label for="photoNumber">Which photo number is this? <span class="required">*</span></label><input id="photoNumber" inputmode="numeric" pattern="[1-9][0-9]*" placeholder="e.g. 1" required></div>
     <div class="validation" id="submitError" role="alert"></div>
     <div class="submission-actions"><button type="submit" class="button primary large" id="downloadZip">SAVE</button><button type="button" class="button" id="changeFolder" hidden>CHANGE FOLDER</button></div>
-    <p class="small" id="packageStatus" role="status" aria-live="polite"></p>
+    <p class="small" id="rawExportInfo" hidden></p><p class="small" id="packageStatus" role="status" aria-live="polite"></p>
    </form>
   </div>
  </div>
@@ -441,7 +441,7 @@ async function loadImageFile(file,regionId=null){if(!file)return;const version=r
 
 function useFabric(img,name,file,demo=false){clearHistory();fabricImg=img;fabricName=name;fabricFile=file;isDemoFabric=demo;regions=[];selectedId=null;segmentation=null;
  const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height,s=Math.min(1,1100/Math.max(w,h));view.width=Math.max(1,Math.round(w*s));view.height=Math.max(1,Math.round(h*s));$('sizeInfo').textContent=w+' × '+h;
- const info=$('rawDecodeInfo');info.hidden=!img.rawSourceDescription;info.textContent=img.rawSourceDescription||'';
+ const info=$('rawDecodeInfo');info.hidden=!img.rawSourceDescription;info.textContent=img.rawSourceDescription||'';const quality=$('rawExportInfo');quality.hidden=!/\.nef$/i.test(name);quality.textContent=/\.nef$/i.test(name)?'NEF export: full-size 16-bit TIFF from RAW. Its brightness and color may differ from the camera preview; artwork is limited to its original image precision.':'';
  const thumb=$('fabricThumb');thumb.src=thumbURL(img);thumb.classList.remove('hide');$('fabricThumbCaption').classList.remove('hide');$('fabricEmpty').classList.add('hide');$('fabricLabel').textContent=name;
  $('rescanUpload').disabled=false;detectCanvases({preserve:false});for(let i=0;i<Math.min(regions.length,artworkLibrary.length);i++){const r=regions[i],item=artworkLibrary[i];r.artImg=item.img;r.artName=item.name;r.artFile=item.file;}updateUI();requestRender();}
 $('fabricFile').addEventListener('change',e=>loadImageFile(e.target.files[0]));const dz=$('fabricDrop');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');loadImageFile(e.dataTransfer.files[0]);});
@@ -617,6 +617,24 @@ function encodeTiff(canvas){
  for(let src=0,dst=pixel;src<rgba.length;src+=4){bytes[dst++]=rgba[src];bytes[dst++]=rgba[src+1];bytes[dst++]=rgba[src+2];}
  return new Blob([buffer],{type:'image/tiff'});
 }
+// Decode the original NEF separately for a genuine full-resolution 16-bit export.
+async function decodeRaw16(file){
+ const prefix=/\/static(?:\/index\.html|\/)?$/.test(location.pathname)?'../vendor/libraw/index.js':'./vendor/libraw/index.js';
+ const {default:LibRaw}=await import(prefix),raw=new LibRaw();
+ try{await raw.open(new Uint8Array(await file.arrayBuffer()),{useCameraWb:true,outputBps:16,outputColor:1});const image=await raw.imageData();if(!image||image.bits!==16||image.colors!==3||!(image.data instanceof Uint16Array)||image.data.length!==image.width*image.height*3)throw Error('This NEF could not be decoded as 16-bit RGB.');return image;}finally{raw.dispose();}
+}
+function encodeTiff16(w,h,rgb){
+ if(!(rgb instanceof Uint16Array)||rgb.length!==w*h*3)throw Error('Invalid 16-bit image data.');
+ // Embed an sRGB ICC profile to keep the interpreted color space explicit.
+ const profile=Uint8Array.from(atob('AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACwAUAAAAMQAdYWNzcEFQUEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c'),c=>c.charCodeAt(0)),count=11,extra=8+2+count*12+4,profileOffset=extra+6,pixel=profileOffset+profile.length+(profile.length%2),header=new ArrayBuffer(pixel),v=new DataView(header);
+ v.setUint8(0,73);v.setUint8(1,73);v.setUint16(2,42,true);v.setUint32(4,8,true);v.setUint16(8,count,true);let pos=10;
+ function tag(id,type,n,val){v.setUint16(pos,id,true);v.setUint16(pos+2,type,true);v.setUint32(pos+4,n,true);if(type===3&&n===1)v.setUint16(pos+8,val,true);else v.setUint32(pos+8,val,true);pos+=12;}
+ tag(256,4,1,w);tag(257,4,1,h);tag(258,3,3,extra);tag(259,3,1,1);tag(262,3,1,2);tag(273,4,1,pixel);tag(277,3,1,3);tag(278,4,1,h);tag(279,4,1,w*h*6);tag(284,3,1,1);tag(34675,7,profile.length,profileOffset);v.setUint32(pos,0,true);v.setUint16(extra,16,true);v.setUint16(extra+2,16,true);v.setUint16(extra+4,16,true);new Uint8Array(header).set(profile,profileOffset);
+ const check=new Uint8Array(new Uint16Array([1]).buffer);if(check[0]!==1){for(let i=0;i<rgb.length;i++)rgb[i]=(rgb[i]>>>8)|((rgb[i]&255)<<8);}return new Blob([header,rgb],{type:'image/tiff'});
+}
+async function fullRawTiff(file,snapshot){$('packageStatus').textContent='Decoding full-resolution RAW…';await yieldFrame();const image=await decodeRaw16(file),workerPath=/\/static(?:\/index\.html|\/)?$/.test(location.pathname)?'../raw-export-worker.js':'./raw-export-worker.js';
+ const job={w:image.width,h:image.height,raw:image.data,globals:{...snapshot.globals},seg:snapshot.segmentation?{w:snapshot.segmentation.w,h:snapshot.segmentation.h,labels:snapshot.segmentation.labels,alpha:snapshot.segmentation.alpha}:null,regions:snapshot.regions.map(r=>{const art=r.artImg?artPixels(r.artImg):null;return {kind:r.kind,segLabel:r.segLabel,mesh:r.mesh,settings:r.settings,art:art?{w:art.w,h:art.h,data:art.data}:null};})};
+ const worker=new Worker(workerPath);try{const output=await new Promise((resolve,reject)=>{worker.onmessage=e=>{if(e.data.error)reject(Error(e.data.error));else if(e.data.done)resolve(e.data.data);else if(e.data.progress)$('packageStatus').textContent='Rendering full-size 16-bit TIFF… '+e.data.progress+'/'+e.data.total;};worker.onerror=e=>reject(Error(e.message||'RAW rendering failed'));worker.postMessage(job,[image.data.buffer]);});return encodeTiff16(image.width,image.height,output);}finally{worker.terminate();}}
 // The project is self-contained: source image, artwork, per-canvas edits and masks.
 function dataUrl(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read an image'));reader.readAsDataURL(blob);});}
 function toBase64(bytes){let chunks=[];for(let i=0;i<bytes.length;i+=32768)chunks.push(String.fromCharCode(...bytes.subarray(i,i+32768)));return btoa(chunks.join(''));}
@@ -655,7 +673,7 @@ $('submissionForm').addEventListener('submit',async e=>{e.preventDefault();const
   if(saveDirectory){const permission=await saveDirectory.requestPermission({mode:'readwrite'});if(permission==='granted')folder=saveDirectory;else throw Error('Folder permission was not granted.');}
   else folder=await chooseFolder();
  }
- $('packageStatus').textContent='Preparing your files…';await yieldFrame();const {w,h}=renderResolution(),base=number+'_'+fabricName.replace(/\.[^.]+$/,'');const tiff=encodeTiff(renderAt(w,h));const projectBlob=new Blob([JSON.stringify(await makeProject(number))],{type:'application/json'});
+ $('packageStatus').textContent='Preparing your files…';await yieldFrame();const base=number+'_'+fabricName.replace(/\.[^.]+$/,''),sourceFile=fabricFile,snapshot=captureState();const projectBlob=new Blob([JSON.stringify(await makeProject(number))],{type:'application/json'});let tiff;if(sourceFile&&/\.nef$/i.test(sourceFile.name))tiff=await fullRawTiff(sourceFile,snapshot);else{const {w,h}=renderResolution();tiff=encodeTiff(renderAt(w,h));}
  if(folder){const names=await unusedNames(folder,base);await writeInFolder(folder,names.tiff,tiff);written=names.tiff;await writeInFolder(folder,names.project,projectBlob);$('packageStatus').textContent='Saved '+names.tiff+' and '+names.project+' in '+folder.name+'.';}
  else{saveBlob(tiff,base+'.tif');saveBlob(projectBlob,base+'_project.json');$('packageStatus').textContent='Downloads requested. Allow multiple downloads if your browser asks.';}
  }catch(err){if(err.name==='AbortError'&&!written){$('packageStatus').textContent='Save cancelled.';}else{$('submitError').textContent=written?'Saved '+written+', but the project file could not be saved: '+err.message:'Save failed: '+err.message;$('packageStatus').textContent='';}}finally{btn.disabled=false;}});
