@@ -6,6 +6,8 @@ const smooth=(a,b,x)=>{if(b<=a)return x>=b?1:0;const t=clamp((x-a)/(b-a),0,1);re
 function blurBox(src,w,h,r){const tmp=new Float32Array(w*h),out=new Float32Array(w*h);r=Math.max(1,r|0);for(let y=0;y<h;y++){let n=0;for(let x=0;x<=r&&x<w;x++)n+=src[y*w+x];for(let x=0;x<w;x++){if(x){if(x-r-1>=0)n-=src[y*w+x-r-1];if(x+r<w)n+=src[y*w+x+r]}tmp[y*w+x]=n/(Math.min(w-1,x+r)-Math.max(0,x-r)+1)}}for(let x=0;x<w;x++){let n=0;for(let y=0;y<=r&&y<h;y++)n+=tmp[y*w+x];for(let y=0;y<h;y++){if(y){if(y-r-1>=0)n-=tmp[(y-r-1)*w+x];if(y+r<h)n+=tmp[(y+r)*w+x]}out[y*w+x]=n/(Math.min(h-1,y+r)-Math.max(0,y-r)+1)}}return out}
 function bilinear(a,w,h,x,y){x=clamp(x,0,w-1);y=clamp(y,0,h-1);const ix=Math.floor(x),iy=Math.floor(y),jx=Math.min(ix+1,w-1),jy=Math.min(iy+1,h-1),dx=x-ix,dy=y-iy;return (a[iy*w+ix]*(1-dx)+a[iy*w+jx]*dx)*(1-dy)+(a[jy*w+ix]*(1-dx)+a[jy*w+jx]*dx)*dy}
 const score=(r,g,b)=>(g-Math.max(r,b))/Math.max(35,g);
+// Preserve artwork highlights while allowing fabric shadows to darken it.
+function fabricLitColor(color,light){const x=clamp(color/255,0,1);if(light<=1)return x*Math.max(0,light)*255;const gain=.55*(1-Math.exp(-(light-1)/.55));return (x+(1-x)*(1-Math.exp(-gain*x)))*255;}
 function composite(job){
  const {w,h,raw,regions,seg,globals}=job;if(!(raw instanceof Uint16Array)||raw.length!==w*h*3)throw Error('Expected full-resolution 16-bit RGB data.');
  // Sample illumination at modest resolution; the source and final pixel buffer remain full size.
@@ -29,7 +31,7 @@ function composite(job){
     const fx=clamp(u*(aw-1),0,aw-1),fy=clamp(v*(ah-1),0,ah-1),ax=Math.floor(fx),ay=Math.floor(fy),bx=Math.min(aw-1,ax+1),by=Math.min(ah-1,ay+1),dx=fx-ax,dy=fy-ay,aa=(ay*aw+ax)*4,ab=(ay*aw+bx)*4,ba=(by*aw+ax)*4,bb=(by*aw+bx)*4;
     function sample(ch){return art[aa+ch]*(1-dx)*(1-dy)+art[ab+ch]*dx*(1-dy)+art[ba+ch]*(1-dx)*dy+art[bb+ch]*dx*dy}
     const alpha=opacity*sample(3)/255;if(alpha<.002)continue;const lum=clamp(shade/Math.max(30,mean),.22,2.1),light=clamp(1+(Math.pow(lum,.9)-1)*lighting+((g-shade)/255)*texture*1.9,.18,2.15);
-    for(let c=0;c<3;c++)out[k+c]=clamp(Math.round(raw[k+c]*(1-alpha)+sample(c)*257*light*alpha),0,65535);
+    for(let c=0;c<3;c++)out[k+c]=clamp(Math.round(raw[k+c]*(1-alpha)+fabricLitColor(sample(c),light)*257*alpha),0,65535);
    }
   }
   for(let y=0;y<N-1;y++)for(let x=0;x<N-1;x++){const a=vertices[y*N+x],b=vertices[y*N+x+1],c=vertices[(y+1)*N+x],d=vertices[(y+1)*N+x+1];tri(a,b,d);tri(a,d,c);}
